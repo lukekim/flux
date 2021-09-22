@@ -116,7 +116,7 @@ func (a *CountAgg) DoUInt(vs *array.Uint) {
 func (a *CountAgg) DoInt(vs *array.Int) {
 	a.count += int64(vs.Len())
 }
-func (a *CountAgg) DoFloat(vs *array.Float) {
+func (a *CountAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	a.count += int64(vs.Len())
 }
 func (a *CountAgg) DoString(vs *array.String) {

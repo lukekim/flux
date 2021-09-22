@@ -172,7 +172,7 @@ type SumFloatAgg struct {
 	ok  bool
 }
 
-func (a *SumFloatAgg) DoFloat(vs *array.Float) {
+func (a *SumFloatAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	if l := vs.Len() - vs.NullN(); l > 0 {
 		if vs.NullN() == 0 {
 			a.sum += math.Float64.Sum(vs)

@@ -157,7 +157,7 @@ func (a *StddevAgg) DoUInt(vs *array.Uint) {
 		a.m2 += delta * delta2
 	}
 }
-func (a *StddevAgg) DoFloat(vs *array.Float) {
+func (a *StddevAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	var delta, delta2 float64
 	for i := 0; i < vs.Len(); i++ {
 		if vs.IsNull(i) {

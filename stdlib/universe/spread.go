@@ -188,7 +188,7 @@ func (a *SpreadUIntAgg) ValueUInt() uint64 {
 }
 
 // Do searches for the min and max value of the array and caches them in the aggregate
-func (a *SpreadFloatAgg) DoFloat(vs *array.Float) {
+func (a *SpreadFloatAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	for i := 0; i < vs.Len(); i++ {
 		if vs.IsNull(i) {
 			continue

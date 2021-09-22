@@ -136,7 +136,7 @@ func (a *MeanAgg) DoUInt(vs *array.Uint) {
 		}
 	}
 }
-func (a *MeanAgg) DoFloat(vs *array.Float) {
+func (a *MeanAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	if l := vs.Len() - vs.NullN(); l > 0 {
 		a.count += int64(l)
 		if vs.NullN() == 0 {

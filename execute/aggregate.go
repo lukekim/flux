@@ -291,7 +291,7 @@ func (t *simpleAggregateTransformation) Process(id DatasetID, tbl flux.Table) er
 			case flux.TUInt:
 				vf.(DoUIntAgg).DoUInt(cr.UInts(tj))
 			case flux.TFloat:
-				vf.(DoFloatAgg).DoFloat(cr.Floats(tj))
+				vf.(DoFloatAgg).DoFloat(cr.Floats(tj), tbl.Key())
 			case flux.TString:
 				vf.(DoStringAgg).DoString(cr.Strings(tj))
 			default:
@@ -331,7 +331,7 @@ func (t *simpleAggregateTransformation) Process(id DatasetID, tbl flux.Table) er
 				return err
 			}
 		case flux.TFloat:
-			v := vf.(FloatValueFunc).ValueFloat()
+			v := vf.(FloatValueFunc).ValueFloat(tbl.Key())
 			if err := builder.AppendFloat(bj, v); err != nil {
 				return err
 			}
@@ -429,7 +429,7 @@ func (t *simpleAggregateTransformation2) Aggregate(chunk table.Chunk, state inte
 		case flux.TUInt:
 			agg.(DoUIntAgg).DoUInt(chunk.Uints(idx))
 		case flux.TFloat:
-			agg.(DoFloatAgg).DoFloat(chunk.Floats(idx))
+			agg.(DoFloatAgg).DoFloat(chunk.Floats(idx), chunk.Key())
 		case flux.TString:
 			agg.(DoStringAgg).DoString(chunk.Strings(idx))
 		default:
@@ -475,7 +475,7 @@ func (t *simpleAggregateTransformation2) Compute(key flux.GroupKey, state interf
 			v := s.agg.(UIntValueFunc).ValueUInt()
 			arr = array.UintRepeat(v, isNull, 1, mem)
 		case flux.TFloat:
-			v := s.agg.(FloatValueFunc).ValueFloat()
+			v := s.agg.(FloatValueFunc).ValueFloat(key)
 			arr = array.FloatRepeat(v, isNull, 1, mem)
 		case flux.TString:
 			v := s.agg.(StringValueFunc).ValueString()
@@ -510,7 +510,7 @@ type DoBoolAgg interface {
 }
 type DoFloatAgg interface {
 	ValueFunc
-	DoFloat(*array.Float)
+	DoFloat(*array.Float, flux.GroupKey)
 }
 type DoIntAgg interface {
 	ValueFunc
@@ -529,7 +529,7 @@ type BoolValueFunc interface {
 	ValueBool() bool
 }
 type FloatValueFunc interface {
-	ValueFloat() float64
+	ValueFloat(key flux.GroupKey) float64
 }
 type IntValueFunc interface {
 	ValueInt() int64

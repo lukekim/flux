@@ -197,19 +197,26 @@ func newQuantileProcedure(qs flux.OperationSpec, a plan.Administration) (plan.Pr
 	}
 }
 
+// Keep track of multiple quantile results, one per group key.
+// This way we don't overwrite memory necessary to get the correct
+// answer with the new narrow state transformation
 type QuantileAgg struct {
 	Quantile,
 	Compression float64
+	aggs map[flux.GroupKey]QuantileAggResult
+	ok   bool
+}
 
+type QuantileAggResult struct {
 	digest *tdigest.TDigest
-	ok     bool
 }
 
 func NewQuantileAgg(q, comp float64) *QuantileAgg {
 	return &QuantileAgg{
 		Quantile:    q,
 		Compression: comp,
-		digest:      tdigest.NewWithCompression(comp),
+		ok:          true,
+		aggs:        make(map[flux.GroupKey]QuantileAggResult),
 	}
 }
 
@@ -238,12 +245,17 @@ func createQuantileTransformation(id execute.DatasetID, mode execute.Accumulatio
 	return execute.NewSimpleAggregateTransformation(context.Background(), id, agg, ps.SimpleAggregateConfig, a.Allocator())
 }
 
-func (a *QuantileAgg) Recycle() *QuantileAgg {
-	na := new(QuantileAgg)
-	*na = *a
-	na.digest.Reset()
-	return na
-}
+// func (a *QuantileAgg) Recycle() *QuantileAgg {
+// This code will probably not be used once we've fully transferred to
+// the new narrow state transformation.
+//
+// Instead of recycling the memory, we will likely want to detect when
+// each result is complete and drop it.
+// na := new(QuantileAgg)
+// *na = *a
+// na.digest.Reset()
+// return na
+// }
 
 func (a *QuantileAgg) NewBoolAgg() execute.DoBoolAgg {
 	return nil
@@ -258,17 +270,26 @@ func (a *QuantileAgg) NewUIntAgg() execute.DoUIntAgg {
 }
 
 func (a *QuantileAgg) NewFloatAgg() execute.DoFloatAgg {
-	return a.Recycle()
+	// Instead of recycling memory, insert a new entry into the map
+	// This may require changing the function signature to accept a
+	// group key.
+	return a
 }
 
 func (a *QuantileAgg) NewStringAgg() execute.DoStringAgg {
 	return nil
 }
 
-func (a *QuantileAgg) DoFloat(vs *array.Float) {
+func (a *QuantileAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
+	_, ok := a.aggs[key]
+	if !ok {
+		a.aggs[key] = QuantileAggResult{
+			digest: tdigest.NewWithCompression(a.Compression),
+		}
+	}
 	for i := 0; i < vs.Len(); i++ {
 		if vs.IsValid(i) {
-			a.digest.Add(vs.Value(i), 1)
+			a.aggs[key].digest.Add(vs.Value(i), 1)
 			a.ok = true
 		}
 	}
@@ -278,8 +299,10 @@ func (a *QuantileAgg) Type() flux.ColType {
 	return flux.TFloat
 }
 
-func (a *QuantileAgg) ValueFloat() float64 {
-	return a.digest.Quantile(a.Quantile)
+func (a *QuantileAgg) ValueFloat(key flux.GroupKey) float64 {
+	q := a.aggs[key].digest.Quantile(a.Quantile)
+	delete(a.aggs, key)
+	return q
 }
 
 func (a *QuantileAgg) IsNull() bool {
@@ -328,7 +351,7 @@ func (a *ExactQuantileAgg) NewStringAgg() execute.DoStringAgg {
 	return nil
 }
 
-func (a *ExactQuantileAgg) DoFloat(vs *array.Float) {
+func (a *ExactQuantileAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	if vs.NullN() == 0 {
 		a.data = append(a.data, vs.Float64Values()...)
 		return

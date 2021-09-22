@@ -152,7 +152,7 @@ func (a *SkewAgg) DoUInt(vs *array.Uint) {
 		a.m1 += deltaN
 	}
 }
-func (a *SkewAgg) DoFloat(vs *array.Float) {
+func (a *SkewAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 	for i := 0; i < vs.Len(); i++ {
 		if vs.IsNull(i) {
 			continue

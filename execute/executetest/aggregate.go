@@ -21,11 +21,11 @@ func AggFuncTestHelper(t *testing.T, agg execute.SimpleAggregate, data *array.Fl
 	vf := agg.NewFloatAgg()
 
 	d := arrow.FloatSlice(data, 0, h)
-	vf.DoFloat(d)
+	vf.DoFloat(d, nil)
 	d.Release()
 	if h < data.Len() {
 		d := arrow.FloatSlice(data, h, data.Len())
-		vf.DoFloat(d)
+		vf.DoFloat(d, nil)
 		d.Release()
 	}
 
@@ -39,7 +39,7 @@ func AggFuncTestHelper(t *testing.T, agg execute.SimpleAggregate, data *array.Fl
 		case flux.TUInt:
 			got = vf.(execute.UIntValueFunc).ValueUInt()
 		case flux.TFloat:
-			got = vf.(execute.FloatValueFunc).ValueFloat()
+			got = vf.(execute.FloatValueFunc).ValueFloat(nil)
 		case flux.TString:
 			got = vf.(execute.StringValueFunc).ValueString()
 		}
@@ -56,7 +56,7 @@ func AggFuncBenchmarkHelper(b *testing.B, agg execute.SimpleAggregate, data *arr
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		vf := agg.NewFloatAgg()
-		vf.DoFloat(data)
+		vf.DoFloat(data, nil)
 		var got interface{}
 		switch vf.Type() {
 		case flux.TBool:
@@ -66,7 +66,7 @@ func AggFuncBenchmarkHelper(b *testing.B, agg execute.SimpleAggregate, data *arr
 		case flux.TUInt:
 			got = vf.(execute.UIntValueFunc).ValueUInt()
 		case flux.TFloat:
-			got = vf.(execute.FloatValueFunc).ValueFloat()
+			got = vf.(execute.FloatValueFunc).ValueFloat(nil)
 		case flux.TString:
 			got = vf.(execute.StringValueFunc).ValueString()
 		}
