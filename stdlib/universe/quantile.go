@@ -203,18 +203,20 @@ func newQuantileProcedure(qs flux.OperationSpec, a plan.Administration) (plan.Pr
 type QuantileAgg struct {
 	Quantile,
 	Compression float64
-	aggs map[flux.GroupKey]QuantileAggResult
-	ok   bool
+	alloc *memory.Allocator
+	aggs  map[flux.GroupKey]QuantileAggResult
+	ok    bool
 }
 
 type QuantileAggResult struct {
 	digest *tdigest.TDigest
 }
 
-func NewQuantileAgg(q, comp float64) *QuantileAgg {
+func NewQuantileAgg(q, comp float64, a *memory.Allocator) *QuantileAgg {
 	return &QuantileAgg{
 		Quantile:    q,
 		Compression: comp,
+		alloc:       a,
 		ok:          true,
 		aggs:        make(map[flux.GroupKey]QuantileAggResult),
 	}
@@ -225,11 +227,7 @@ func createQuantileTransformation(id execute.DatasetID, mode execute.Accumulatio
 	if !ok {
 		return nil, nil, errors.Newf(codes.Internal, "invalid spec type %T", ps)
 	}
-	agg := NewQuantileAgg(ps.Quantile, ps.Compression)
-	err := a.Allocator().Account(tdigest.ByteSizeForCompression(agg.Compression))
-	if err != nil {
-		return nil, nil, errors.Newf(codes.Internal, "could not allocate memory for tdigest: %s", err)
-	}
+	agg := NewQuantileAgg(ps.Quantile, ps.Compression, a.Allocator())
 	// TODO(sean): The quantile transformation is not compatible with the new aggregate transport.
 	// For now, we are passing it an empty context so that the new transport can't be enabled via feature flag.
 	// Once we've done some work to refactor quantile, we can try enabling the new transport again to see if the problem
@@ -286,6 +284,7 @@ func (a *QuantileAgg) DoFloat(vs *array.Float, key flux.GroupKey) {
 		a.aggs[key] = QuantileAggResult{
 			digest: tdigest.NewWithCompression(a.Compression),
 		}
+		_ = a.alloc.Account(tdigest.ByteSizeForCompression(a.Compression))
 	}
 	for i := 0; i < vs.Len(); i++ {
 		if vs.IsValid(i) {
@@ -301,6 +300,8 @@ func (a *QuantileAgg) Type() flux.ColType {
 
 func (a *QuantileAgg) ValueFloat(key flux.GroupKey) float64 {
 	q := a.aggs[key].digest.Quantile(a.Quantile)
+	// TODO: Figure out the appropriate value to pass into Free()
+	a.alloc.Free([]byte{})
 	delete(a.aggs, key)
 	return q
 }
