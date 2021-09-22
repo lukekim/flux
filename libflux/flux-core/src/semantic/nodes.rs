@@ -867,6 +867,10 @@ impl FunctionExpr {
         }
         // And use it to infer the body.
         let (nenv, bcons) = self.body.infer(nenv, f)?;
+        // Update the argument variable with the types inferred from the body
+        for (k, t) in req.iter_mut() {
+            *t = nenv.lookup(k).unwrap().expr.clone();
+        }
         // Now pop the nested environment, we don't need it anymore.
         let env = nenv.pop();
         let retn = self.body.type_of();
