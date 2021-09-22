@@ -39,6 +39,7 @@ pub enum Node<'a> {
     BooleanLit(&'a BooleanLit),
     DateTimeLit(&'a DateTimeLit),
     RegexpLit(&'a RegexpLit),
+    VectorExpr(&'a VectorExpr),
 
     // Statements.
     ExprStmt(&'a ExprStmt),
@@ -87,6 +88,7 @@ impl<'a> fmt::Display for Node<'a> {
             Node::BooleanLit(_) => write!(f, "BooleanLit"),
             Node::DateTimeLit(_) => write!(f, "DateTimeLit"),
             Node::RegexpLit(_) => write!(f, "RegexpLit"),
+            Node::VectorExpr(_) => write!(f, "VectorExpr"),
             Node::ExprStmt(_) => write!(f, "ExprStmt"),
             Node::OptionStmt(_) => write!(f, "OptionStmt"),
             Node::ReturnStmt(_) => write!(f, "ReturnStmt"),
@@ -138,6 +140,7 @@ impl<'a> Node<'a> {
             Node::BooleanLit(n) => &n.loc,
             Node::DateTimeLit(n) => &n.loc,
             Node::RegexpLit(n) => &n.loc,
+            Node::VectorExpr(n) => &n.loc,
             Node::ExprStmt(n) => &n.loc,
             Node::OptionStmt(n) => &n.loc,
             Node::ReturnStmt(n) => &n.loc,
@@ -178,6 +181,7 @@ impl<'a> Node<'a> {
             Node::BooleanLit(n) => Some(Expression::Boolean((*n).clone()).type_of()),
             Node::DateTimeLit(n) => Some(Expression::DateTime((*n).clone()).type_of()),
             Node::RegexpLit(n) => Some(Expression::Regexp((*n).clone()).type_of()),
+            Node::VectorExpr(n) => Some(Expression::Vector(Box::new((*n).clone())).type_of()),
             _ => None,
         }
     }
@@ -209,6 +213,7 @@ impl<'a> Node<'a> {
             Expression::Boolean(ref e) => Node::BooleanLit(e),
             Expression::DateTime(ref e) => Node::DateTimeLit(e),
             Expression::Regexp(ref e) => Node::RegexpLit(e),
+            Expression::Vector(ref e) => Node::VectorExpr(e),
         }
     }
 
@@ -361,6 +366,11 @@ where
             Node::Identifier(_) => {}
             Node::IdentifierExpr(_) => {}
             Node::ArrayExpr(n) => {
+                for element in n.elements.iter() {
+                    walk(v, Rc::new(Node::from_expr(element)));
+                }
+            }
+            Node::VectorExpr(n) => {
                 for element in n.elements.iter() {
                     walk(v, Rc::new(Node::from_expr(element)));
                 }

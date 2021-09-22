@@ -577,6 +577,42 @@ impl<'a> semantic::walk::Visitor<'_> for SerializingVisitor<'a> {
                 ))
             }
 
+            walk::Node::VectorExpr(vector) => {
+                let num_elems = vector.elements.len();
+                let start = v.expr_stack.len() - num_elems;
+                let elements = {
+                    let elems = &v.expr_stack.as_slice()[start..];
+                    let mut wrapped_elems = Vec::with_capacity(num_elems);
+                    for (e, et) in elems {
+                        wrapped_elems.push(fbsemantic::WrappedExpression::create(
+                            &mut v.builder,
+                            &fbsemantic::WrappedExpressionArgs {
+                                expression_type: *et,
+                                expression: Some(*e),
+                            },
+                        ));
+                    }
+                    Some(v.builder.create_vector(wrapped_elems.as_slice()))
+                };
+                v.expr_stack.truncate(start);
+                let vect_typ = vector.typ.clone();
+                let (typ, typ_type) = types::build_type(&mut v.builder, vect_typ);
+
+                let vector = fbsemantic::VectorExpression::create(
+                    &mut v.builder,
+                    &fbsemantic::VectorExpressionArgs {
+                        loc,
+                        elements,
+                        typ: Some(typ),
+                        typ_type,
+                    },
+                );
+                v.expr_stack.push((
+                    vector.as_union_value(),
+                    fbsemantic::Expression::VectorExpression,
+                ))
+            }
+
             walk::Node::DictExpr(dict) => {
                 let num_elems = dict.elements.len();
                 let stop = v.expr_stack.len();

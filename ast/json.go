@@ -776,6 +776,40 @@ func (e *ArrayExpression) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+func (e *VectorExpression) MarshalJSON() ([]byte, error) {
+	type Alias VectorExpression
+	raw := struct {
+		Type string `json:"type"`
+		*Alias
+	}{
+		Type:  e.Type(),
+		Alias: (*Alias)(e),
+	}
+	return json.Marshal(raw)
+}
+func (e *VectorExpression) UnmarshalJSON(data []byte) error {
+	type Alias VectorExpression
+	raw := struct {
+		*Alias
+		Elements []json.RawMessage `json:"elements"`
+	}{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw.Alias != nil {
+		*e = *(*VectorExpression)(raw.Alias)
+	}
+
+	e.Elements = make([]Expression, len(raw.Elements))
+	for i, r := range raw.Elements {
+		expr, err := unmarshalExpression(r)
+		if err != nil {
+			return err
+		}
+		e.Elements[i] = expr
+	}
+	return nil
+}
 func (e *DictExpression) MarshalJSON() ([]byte, error) {
 	type Alias DictExpression
 	raw := struct {
@@ -1209,6 +1243,37 @@ func (nt *ArrayType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (arr VectorType) MarshalJSON() ([]byte, error) {
+	type Alias VectorType
+	raw := struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  arr.Type(),
+		Alias: (Alias)(arr),
+	}
+	return json.Marshal(raw)
+}
+func (nt *VectorType) UnmarshalJSON(data []byte) error {
+	type Alias VectorType
+	raw := struct {
+		*Alias
+		ElementType json.RawMessage `json:"element"`
+	}{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw.Alias != nil {
+		*nt = *(*VectorType)(raw.Alias)
+	}
+	et, err := unmarshalMonotype(raw.ElementType)
+	if err != nil {
+		return err
+	}
+	nt.ElementType = et
+	return nil
+}
+
 func (c DictType) MarshalJSON() ([]byte, error) {
 	type Alias DictType
 	raw := struct {
@@ -1550,6 +1615,8 @@ func unmarshalNode(msg json.RawMessage) (Node, error) {
 		node = new(RecordType)
 	case "ArrayType":
 		node = new(ArrayType)
+	case "VectorType":
+		node = new(VectorType)
 	case "DictType":
 		node = new(DictType)
 	case "TvarType":
@@ -1604,6 +1671,8 @@ func unmarshalNode(msg json.RawMessage) (Node, error) {
 		node = new(ConditionalExpression)
 	case "ArrayExpression":
 		node = new(ArrayExpression)
+	case "VectorExpression":
+		node = new(VectorExpression)
 	case "DictExpression":
 		node = new(DictExpression)
 	case "Identifier":

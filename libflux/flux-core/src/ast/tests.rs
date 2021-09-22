@@ -548,6 +548,29 @@ fn test_json_array() {
     assert_eq!(deserialized, n)
 }
 #[test]
+fn test_json_vector() {
+    let n = MonoType::Vector(Box::new(VectorType {
+        base: BaseNode::default(),
+        element: MonoType::Vector(Box::new(VectorType {
+            base: BaseNode::default(),
+            element: MonoType::Basic(NamedType {
+                base: BaseNode::default(),
+                name: Identifier {
+                    base: BaseNode::default(),
+                    name: "A".to_string(),
+                },
+            }),
+        })),
+    }));
+    let serialized = serde_json::to_string(&n).unwrap();
+    assert_eq!(
+        serialized,
+        r#"{"type":"VectorType","element":{"type":"VectorType","element":{"type":"NamedType","name":{"name":"A"}}}}"#
+    );
+    let deserialized: MonoType = serde_json::from_str(serialized.as_str()).unwrap();
+    assert_eq!(deserialized, n)
+}
+#[test]
 fn test_json_dict() {
     let n = MonoType::Dict(Box::new(DictType {
         base: BaseNode::default(),
@@ -1536,6 +1559,39 @@ fn test_json_array_expression() {
     let deserialized: Expression = serde_json::from_str(serialized.as_str()).unwrap();
     assert_eq!(deserialized, n)
 }
+
+/*
+{
+    name: "vector expression",
+    node: &ast.VectorExpression{
+        Elements: []ast.Expression{&ast.StringLiteral{Value: "hello"}},
+    },
+    want: `{"type":"VectorExpression","elements":[{"type":"StringLiteral","value":"hello"}]}`,
+},
+*/
+#[test]
+fn test_json_vector_expression() {
+    let n = Expression::Vector(Box::new(VectorExpr {
+        base: BaseNode::default(),
+        lbrack: vec![],
+        elements: vec![VectorItem {
+            expression: Expression::StringLit(StringLit {
+                base: BaseNode::default(),
+                value: "hello".to_string(),
+            }),
+            comma: vec![],
+        }],
+        rbrack: vec![],
+    }));
+    let serialized = serde_json::to_string(&n).unwrap();
+    assert_eq!(
+        serialized,
+        r#"{"type":"VectorExpression","elements":[{"type":"StringLiteral","value":"hello"}]}"#
+    );
+    let deserialized: Expression = serde_json::from_str(serialized.as_str()).unwrap();
+    assert_eq!(deserialized, n)
+}
+
 #[test]
 fn test_json_dict_expression() {
     let n = Expression::Dict(Box::new(DictExpr {

@@ -107,6 +107,12 @@ func (t ArrayType) FromBuf(buf *fbast.ArrayType) *ArrayType {
 	return &t
 }
 
+func (t VectorType) FromBuf(buf *fbast.VectorType) *VectorType {
+	t.BaseNode.FromBuf(buf.BaseNode(nil))
+	t.ElementType = DecodeMonoType(newFBTable(buf.Element, &t.BaseNode), buf.ElementType())
+	return &t
+}
+
 func (t DictType) FromBuf(buf *fbast.DictType) *DictType {
 	t.BaseNode.FromBuf(buf.BaseNode(nil))
 	t.KeyType = DecodeMonoType(newFBTable(buf.Key, &t.BaseNode), buf.KeyType())
@@ -181,6 +187,10 @@ func DecodeMonoType(t *flatbuffers.Table, ty fbast.MonoType) MonoType {
 		b := new(fbast.ArrayType)
 		b.Init(t.Bytes, t.Pos)
 		return ArrayType{}.FromBuf(b)
+	case fbast.MonoTypeVectorType:
+		b := new(fbast.VectorType)
+		b.Init(t.Bytes, t.Pos)
+		return VectorType{}.FromBuf(b)
 	case fbast.MonoTypeDictType:
 		b := new(fbast.DictType)
 		b.Init(t.Bytes, t.Pos)
@@ -462,6 +472,16 @@ func (e ArrayExpression) FromBuf(buf *fbast.ArrayExpression) *ArrayExpression {
 	return &e
 }
 
+func (e VectorExpression) FromBuf(buf *fbast.VectorExpression) *VectorExpression {
+	e.BaseNode.FromBuf(buf.BaseNode(nil))
+	var err []Error
+	e.Elements, err = exprVectorFromBuf(buf.ElementsLength(), buf.Elements, "VectorExpression.Elements")
+	if len(err) > 0 {
+		e.BaseNode.Errors = append(e.BaseNode.Errors, err...)
+	}
+	return &e
+}
+
 func (e ObjectExpression) FromBuf(buf *fbast.ObjectExpression) *ObjectExpression {
 	e.BaseNode.FromBuf(buf.BaseNode(nil))
 	e.With = Identifier{}.FromBuf(buf.With(nil))
@@ -654,6 +674,23 @@ func exprArrayFromBuf(len int, g exprGetterFn, arrName string) ([]Expression, []
 	return s, err
 }
 
+type exprVectorGetterFn func(obj *fbast.WrappedExpression, j int) bool
+
+func exprVectorFromBuf(len int, g exprVectorGetterFn, vectName string) ([]Expression, []Error) {
+	s := make([]Expression, len)
+	err := make([]Error, 0)
+	for i := 0; i < len; i++ {
+		e := new(fbast.WrappedExpression)
+		t := new(flatbuffers.Table)
+		if !g(e, i) || !e.Expr(t) || e.ExprType() == fbast.ExpressionNONE {
+			err = append(err, Error{fmt.Sprintf("Encountered error in deserializing %s[%d]", vectName, i)})
+		} else {
+			s[i] = exprFromBufTable(t, e.ExprType())
+		}
+	}
+	return s, err
+}
+
 type unionTableWriterFn func(t *flatbuffers.Table) bool
 
 func exprFromBuf(label string, baseNode BaseNode, f unionTableWriterFn, etype fbast.Expression) Expression {
@@ -680,6 +717,10 @@ func exprFromBufTable(t *flatbuffers.Table, etype fbast.Expression) Expression {
 		a := new(fbast.ArrayExpression)
 		a.Init(t.Bytes, t.Pos)
 		return ArrayExpression{}.FromBuf(a)
+	case fbast.ExpressionVectorExpression:
+		a := new(fbast.VectorExpression)
+		a.Init(t.Bytes, t.Pos)
+		return VectorExpression{}.FromBuf(a)
 	case fbast.ExpressionFunctionExpression:
 		f := new(fbast.FunctionExpression)
 		f.Init(t.Bytes, t.Pos)

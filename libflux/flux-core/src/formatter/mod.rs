@@ -220,6 +220,7 @@ impl Formatter {
             Node::ConditionalExpr(m) => self.format_conditional_expression(m),
             Node::StringExpr(m) => self.format_string_expression(m),
             Node::ArrayExpr(m) => self.format_array_expression(m),
+            Node::VectorExpr(m) => self.format_vector_expression(m),
             Node::DictExpr(m) => self.format_dict_expression(m),
             Node::MemberExpr(m) => self.format_member_expression(m),
             Node::UnaryExpr(m) => self.format_unary_expression(m),
@@ -320,6 +321,7 @@ impl Formatter {
             ast::MonoType::Tvar(tv) => self.format_tvar(tv),
             ast::MonoType::Basic(nt) => self.format_basic_type(nt),
             ast::MonoType::Array(arr) => self.format_array_type(arr),
+            ast::MonoType::Vector(vector) => self.format_vector_type(vector),
             ast::MonoType::Dict(dict) => self.format_dict_type(dict),
             ast::MonoType::Record(rec) => self.format_record_type(rec),
             ast::MonoType::Function(fun) => self.format_function_type(fun),
@@ -441,6 +443,11 @@ impl Formatter {
         self.write_rune(']');
     }
     fn format_array_type(&mut self, n: &ast::ArrayType) {
+        self.write_rune('[');
+        self.format_monotype(&n.element);
+        self.write_rune(']');
+    }
+    fn format_vector_type(&mut self, n: &ast::VectorType) {
         self.write_rune('[');
         self.format_monotype(&n.element);
         self.write_rune(']');
@@ -600,6 +607,40 @@ impl Formatter {
     }
 
     fn format_array_expression(&mut self, n: &ast::ArrayExpr) {
+        let multiline = n.elements.len() > 4 || n.base.is_multiline();
+        self.format_comments(&n.lbrack);
+        self.write_rune('[');
+        if multiline {
+            self.temp_singleline = true;
+            self.write_rune('\n');
+            self.indent();
+            self.write_indent();
+        }
+        let sep = match multiline {
+            true => ",\n",
+            false => ", ",
+        };
+        for (i, item) in (&n.elements).iter().enumerate() {
+            if i != 0 {
+                self.write_string(sep);
+                if multiline {
+                    self.write_indent()
+                }
+            }
+            self.format_node(&Node::from_expr(&item.expression));
+            self.format_comments(&item.comma);
+        }
+        if multiline {
+            self.temp_singleline = false;
+            self.write_string(sep);
+            self.unindent();
+            self.write_indent();
+        }
+        self.format_comments(&n.rbrack);
+        self.write_rune(']')
+    }
+
+    fn format_vector_expression(&mut self, n: &ast::VectorExpr) {
         let multiline = n.elements.len() > 4 || n.base.is_multiline();
         self.format_comments(&n.lbrack);
         self.write_rune('[');
@@ -1324,6 +1365,7 @@ fn starts_with_comment(n: Node) -> bool {
         Node::ImportDeclaration(n) => !n.base.comments.is_empty(),
         Node::Identifier(n) => !n.base.comments.is_empty(),
         Node::ArrayExpr(n) => !n.lbrack.is_empty(),
+        Node::VectorExpr(n) => !n.lbrack.is_empty(),
         Node::DictExpr(n) => !n.lbrack.is_empty(),
         Node::FunctionExpr(n) => !n.lparen.is_empty(),
         Node::LogicalExpr(n) => starts_with_comment(Node::from_expr(&n.left)),

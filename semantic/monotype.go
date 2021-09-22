@@ -86,6 +86,8 @@ func nature(tbl flatbuffers.Table, t fbsemantic.MonoType) Nature {
 		}
 	case fbsemantic.MonoTypeArr:
 		return Array
+	case fbsemantic.MonoTypeVect:
+		return Vector
 	case fbsemantic.MonoTypeRecord:
 		return Object
 	case fbsemantic.MonoTypeFun:
@@ -681,6 +683,22 @@ func NewArrayType(elemType MonoType) MonoType {
 	return mt
 }
 
+// NewVectorType will construct a new Vector MonoType
+// where the inner element for the vector is elemType.
+func NewVectorType(elemType MonoType) MonoType {
+	builder := flatbuffers.NewBuilder(32)
+	offset := buildVectorType(builder, elemType)
+	builder.Finish(offset)
+
+	buf := builder.FinishedBytes()
+	arr := fbsemantic.GetRootAsArr(buf, 0)
+	mt, err := NewMonoType(arr.Table(), fbsemantic.MonoTypeArr)
+	if err != nil {
+		panic(err)
+	}
+	return mt
+}
+
 type ArgumentType struct {
 	Name     []byte
 	Type     MonoType
@@ -781,6 +799,12 @@ func copyMonoType(builder *flatbuffers.Builder, t MonoType) flatbuffers.UOffsetT
 
 		elem := monoTypeFromFunc(arr.T, arr.TType())
 		return buildArrayType(builder, elem)
+	case fbsemantic.MonoTypeVect:
+		var vector fbsemantic.Vector
+		vector.Init(table.Bytes, table.Pos)
+
+		elem := monoTypeFromFunc(vector.T, vector.TType())
+		return buildVectorType(builder, elem)
 	case fbsemantic.MonoTypeRecord:
 		var record fbsemantic.Record
 		record.Init(table.Bytes, table.Pos)
@@ -868,6 +892,16 @@ func buildArrayType(builder *flatbuffers.Builder, elemType MonoType) flatbuffers
 	fbsemantic.ArrAddTType(builder, elemType.mt)
 	fbsemantic.ArrAddT(builder, offset)
 	return fbsemantic.ArrEnd(builder)
+}
+
+// buildVectorType will construct an vector type in the builder
+// and return the offset for the type.
+func buildVectorType(builder *flatbuffers.Builder, elemType MonoType) flatbuffers.UOffsetT {
+	offset := copyMonoType(builder, elemType)
+	fbsemantic.VectStart(builder)
+	fbsemantic.VectAddTType(builder, elemType.mt)
+	fbsemantic.VectAddT(builder, offset)
+	return fbsemantic.VectEnd(builder)
 }
 
 // buildFunctionType will construct a fun type in the builder

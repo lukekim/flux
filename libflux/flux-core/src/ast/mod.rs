@@ -186,6 +186,8 @@ pub enum Expression {
 
     #[serde(rename = "BadExpression")]
     Bad(Box<BadExpr>),
+    #[serde(rename = "VectorExpression")]
+    Vector(Box<VectorExpr>),
 }
 
 impl Expression {
@@ -194,6 +196,7 @@ impl Expression {
         match self {
             Expression::Identifier(wrapped) => &wrapped.base,
             Expression::Array(wrapped) => &wrapped.base,
+            Expression::Vector(wrapped) => &wrapped.base,
             Expression::Dict(wrapped) => &wrapped.base,
             Expression::Function(wrapped) => &wrapped.base,
             Expression::Logical(wrapped) => &wrapped.base,
@@ -574,6 +577,8 @@ pub enum MonoType {
     Record(RecordType),
     #[serde(rename = "FunctionType")]
     Function(Box<FunctionType>),
+    #[serde(rename = "VectorType")]
+    Vector(Box<VectorType>),
 }
 
 impl MonoType {
@@ -583,6 +588,7 @@ impl MonoType {
             MonoType::Basic(t) => &t.base,
             MonoType::Tvar(t) => &t.base,
             MonoType::Array(t) => &t.base,
+            MonoType::Vector(t) => &t.base,
             MonoType::Dict(t) => &t.base,
             MonoType::Record(t) => &t.base,
             MonoType::Function(t) => &t.base,
@@ -613,6 +619,16 @@ pub struct TvarType {
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub struct ArrayType {
+    #[serde(skip_serializing_if = "BaseNode::is_empty")]
+    #[serde(default)]
+    #[serde(flatten)]
+    pub base: BaseNode,
+    pub element: MonoType,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(missing_docs)]
+pub struct VectorType {
     #[serde(skip_serializing_if = "BaseNode::is_empty")]
     #[serde(default)]
     #[serde(flatten)]
@@ -718,6 +734,13 @@ fn get_err_monotype(mt: MonoType) -> String {
             get_err_identifier(t.name)
         }
         MonoType::Array(t) => {
+            let e = get_err_basenode((*t).base);
+            if !e.is_empty() {
+                return e;
+            }
+            get_err_monotype((*t).element)
+        }
+        MonoType::Vector(t) => {
             let e = get_err_basenode((*t).base);
             if !e.is_empty() {
                 return e;
@@ -1372,6 +1395,36 @@ pub struct ArrayExpr {
     pub lbrack: Vec<Comment>,
     #[serde(deserialize_with = "deserialize_default_from_null")]
     pub elements: Vec<ArrayItem>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub rbrack: Vec<Comment>,
+}
+
+/// VectorExpr is used to create and directly specify the elements of an vector object
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(missing_docs)]
+pub struct VectorItem {
+    #[serde(default)]
+    #[serde(flatten)]
+    pub expression: Expression,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub comma: Vec<Comment>,
+}
+
+/// VectorExpr is used to create and directly specify the elements of an vector object
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[allow(missing_docs)]
+pub struct VectorExpr {
+    #[serde(skip_serializing_if = "BaseNode::is_empty")]
+    #[serde(default)]
+    #[serde(flatten)]
+    pub base: BaseNode,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub lbrack: Vec<Comment>,
+    #[serde(deserialize_with = "deserialize_default_from_null")]
+    pub elements: Vec<VectorItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     pub rbrack: Vec<Comment>,

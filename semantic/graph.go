@@ -37,6 +37,7 @@ func (*NativeVariableAssignment) node() {}
 
 func (*StringExpression) node()      {}
 func (*ArrayExpression) node()       {}
+func (*VectorExpression) node()      {}
 func (*DictExpression) node()        {}
 func (*FunctionExpression) node()    {}
 func (*BinaryExpression) node()      {}
@@ -96,6 +97,7 @@ type Expression interface {
 
 func (*StringExpression) expression()       {}
 func (*ArrayExpression) expression()        {}
+func (*VectorExpression) expression()       {}
 func (*DictExpression) expression()         {}
 func (*BinaryExpression) expression()       {}
 func (*BooleanLiteral) expression()         {}
@@ -519,6 +521,36 @@ func (e *ArrayExpression) Copy() Node {
 	return ne
 }
 func (e *ArrayExpression) TypeOf() MonoType {
+	return e.Type
+}
+
+type VectorExpression struct {
+	Loc
+
+	Elements []Expression
+
+	Type MonoType
+}
+
+func (*VectorExpression) NodeType() string { return "VectorExpression" }
+
+func (e *VectorExpression) Copy() Node {
+	if e == nil {
+		return e
+	}
+	ne := new(VectorExpression)
+	*ne = *e
+
+	if len(e.Elements) > 0 {
+		ne.Elements = make([]Expression, len(e.Elements))
+		for i, elem := range e.Elements {
+			ne.Elements[i] = elem.Copy().(Expression)
+		}
+	}
+
+	return ne
+}
+func (e *VectorExpression) TypeOf() MonoType {
 	return e.Type
 }
 

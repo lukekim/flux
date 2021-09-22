@@ -19,6 +19,7 @@ use crate::ast::{
     RecordType,
     ParameterType,
     FunctionType,
+    VectorType,
 };
 
 fn build_vec<T, S, F, B>(v: Vec<T>, b: &mut B, f: F) -> Vec<S>
@@ -152,6 +153,10 @@ fn build_monotype<'a>(
             let offset = build_array_type(builder, *t);
             (offset.as_union_value(), fb::MonoType::ArrayType)
         }
+        MonoType::Vector(t) => {
+            let offset = build_vector_type(builder, *t);
+            (offset.as_union_value(), fb::MonoType::VectorType)
+        }
         MonoType::Dict(t) => {
             let offset = build_dict_type(builder, *t);
             (offset.as_union_value(), fb::MonoType::DictType)
@@ -203,6 +208,22 @@ fn build_array_type<'a>(
     fb::ArrayType::create(
         builder,
         &fb::ArrayTypeArgs {
+            base_node: Some(base_node),
+            element: Some(offset),
+            element_type: t,
+        },
+    )
+}
+
+fn build_vector_type<'a>(
+    builder: &mut flatbuffers::FlatBufferBuilder<'a>,
+    a: VectorType,
+) -> flatbuffers::WIPOffset<fb::VectorType<'a>> {
+    let base_node = build_base_node(builder, a.base);
+    let (offset, t) = build_monotype(builder, a.element);
+    fb::VectorType::create(
+        builder,
+        &fb::VectorTypeArgs {
             base_node: Some(base_node),
             element: Some(offset),
             element_type: t,
@@ -384,6 +405,9 @@ mod tests {
             fb::MonoType::ArrayType => {
                 MonoType::Array(Box::new(fb::ArrayType::init_from_table(table).into()))
             }
+            fb::MonoType::VectorType => {
+                MonoType::Vector(Box::new(fb::VectorType::init_from_table(table).into()))
+            }
             fb::MonoType::DictType => {
                 MonoType::Dict(Box::new(fb::DictType::init_from_table(table).into()))
             }
@@ -424,6 +448,14 @@ mod tests {
     impl From<fb::ArrayType<'_>> for ArrayType {
         fn from(t: fb::ArrayType) -> ArrayType {
             ArrayType {
+                base: BaseNode::default(),
+                element: monotype_from_table(t.element().unwrap(), t.element_type()),
+            }
+        }
+    }
+    impl From<fb::VectorType<'_>> for VectorType {
+        fn from(t: fb::VectorType) -> VectorType {
+            VectorType {
                 base: BaseNode::default(),
                 element: monotype_from_table(t.element().unwrap(), t.element_type()),
             }
@@ -608,6 +640,32 @@ mod tests {
                 &mut builder,
                 want.clone(),
                 build_array_type,
+            ))
+            .unwrap()
+            .into()
+        );
+    }
+    #[test]
+    fn test_vector_type() {
+        let want = VectorType {
+            base: BaseNode::default(),
+            element: MonoType::Basic(NamedType {
+                base: BaseNode::default(),
+                name: Identifier {
+                    base: BaseNode::default(),
+                    name: "int".to_string(),
+                },
+            }),
+        };
+
+        let mut builder = flatbuffers::FlatBufferBuilder::new();
+
+        assert_eq!(
+            want,
+            flatbuffers::root::<fb::VectorType>(serialize(
+                &mut builder,
+                want.clone(),
+                build_vector_type,
             ))
             .unwrap()
             .into()

@@ -419,6 +419,24 @@ fn compare_exprs(
                 i = i + 1
             }
         }
+        (ast::Expression::Vector(ast_ve), fbast::Expression::VectorExpression) => {
+            let fb_ve = fbast::VectorExpression::init_from_table(*fb_tbl);
+            compare_base(&ast_ve.base, &fb_ve.base_node())?;
+            let fb_elems = fb_ve.elements();
+            let fb_elems = unwrap_or_fail("vector elems", &fb_elems)?;
+            compare_vec_len(&ast_ve.elements, fb_elems)?;
+
+            let mut i: usize = 0;
+            loop {
+                if i >= ast_ve.elements.len() {
+                    break Ok(());
+                }
+                let fb_we = &fb_elems.get(i);
+                let fb_e = &fb_we.expr();
+                compare_exprs(&ast_ve.elements[i].expression, fb_we.expr_type(), fb_e)?;
+                i = i + 1
+            }
+        }
         (ast::Expression::Function(ast_fe), fbast::Expression::FunctionExpression) => {
             let fb_fe = fbast::FunctionExpression::init_from_table(*fb_tbl);
             compare_base(&ast_fe.base, &fb_fe.base_node())?;

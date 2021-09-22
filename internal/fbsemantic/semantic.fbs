@@ -20,6 +20,7 @@ union MonoType {
   Record,
   Fun,
   Dict,
+  Vector,
 }
 
 table MonoTypeHolder {
@@ -53,6 +54,10 @@ table Basic {
 // been released.
 
 table Arr {
+  t:MonoType /*(required)*/;
+}
+
+table Vector {
   t:MonoType /*(required)*/;
 }
 
@@ -145,6 +150,7 @@ union Expression {
   StringLiteral,
   RegexpLiteral,
   UnsignedIntegerLiteral,
+  VectorExpression,
 }
 
 table Package {
@@ -250,6 +256,12 @@ table StringExpressionPart {
 }
 
 table ArrayExpression {
+  loc:SourceLocation;
+  elements:[WrappedExpression];
+  typ:MonoType;
+}
+
+table VectorExpression {
   loc:SourceLocation;
   elements:[WrappedExpression];
   typ:MonoType;

@@ -238,6 +238,34 @@ impl<'a> ast::walk::Visitor<'a> for SerializingVisitor<'a> {
                 v.expr_stack
                     .push((ae.as_union_value(), fbast::Expression::ArrayExpression))
             }
+            walk::Node::VectorExpr(ve) => {
+                let n_elems = ve.elements.len();
+                let elements = {
+                    let start = v.expr_stack.len() - n_elems;
+                    let elems = &v.expr_stack.as_slice()[start..];
+                    let mut wrapped_elems = Vec::with_capacity(n_elems);
+                    for (e, et) in elems {
+                        wrapped_elems.push(fbast::WrappedExpression::create(
+                            &mut v.builder,
+                            &fbast::WrappedExpressionArgs {
+                                expr_type: *et,
+                                expr: Some(*e),
+                            },
+                        ));
+                    }
+                    Some(v.builder.create_vector(wrapped_elems.as_slice()))
+                };
+                v.expr_stack.truncate(v.expr_stack.len() - n_elems);
+                let ve = fbast::VectorExpression::create(
+                    &mut v.builder,
+                    &fbast::VectorExpressionArgs {
+                        base_node,
+                        elements,
+                    },
+                );
+                v.expr_stack
+                    .push((ve.as_union_value(), fbast::Expression::VectorExpression))
+            }
             walk::Node::DictExpr(de) => {
                 let n_elems = de.elements.len();
                 let stop = v.expr_stack.len();

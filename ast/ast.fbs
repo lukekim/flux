@@ -7,6 +7,7 @@ union MonoType {
   DictType,
   RecordType,
   FunctionType,
+  VectorType,
 }
 
 table NamedType {
@@ -20,6 +21,11 @@ table TvarType {
 }
 
 table ArrayType {
+  base_node:BaseNode;
+  element:MonoType;
+}
+
+table VectorType {
   base_node:BaseNode;
   element:MonoType;
 }
@@ -116,6 +122,7 @@ union Expression {
   UnaryExpression,
   UnsignedIntegerLiteral,
   BadExpression,
+  VectorExpression,
 }
 
 struct Position {
@@ -370,6 +377,11 @@ table ParenExpression {
 }
 
 table ArrayExpression {
+  base_node:BaseNode;
+  elements:[WrappedExpression];
+}
+
+table VectorExpression {
   base_node:BaseNode;
   elements:[WrappedExpression];
 }

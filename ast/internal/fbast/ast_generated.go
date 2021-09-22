@@ -18,6 +18,7 @@ const (
 	MonoTypeDictType     MonoType = 4
 	MonoTypeRecordType   MonoType = 5
 	MonoTypeFunctionType MonoType = 6
+	MonoTypeVectorType   MonoType = 7
 )
 
 var EnumNamesMonoType = map[MonoType]string{
@@ -28,6 +29,7 @@ var EnumNamesMonoType = map[MonoType]string{
 	MonoTypeDictType:     "DictType",
 	MonoTypeRecordType:   "RecordType",
 	MonoTypeFunctionType: "FunctionType",
+	MonoTypeVectorType:   "VectorType",
 }
 
 var EnumValuesMonoType = map[string]MonoType{
@@ -38,6 +40,7 @@ var EnumValuesMonoType = map[string]MonoType{
 	"DictType":     MonoTypeDictType,
 	"RecordType":   MonoTypeRecordType,
 	"FunctionType": MonoTypeFunctionType,
+	"VectorType":   MonoTypeVectorType,
 }
 
 func (v MonoType) String() string {
@@ -178,6 +181,7 @@ const (
 	ExpressionUnaryExpression        Expression = 23
 	ExpressionUnsignedIntegerLiteral Expression = 24
 	ExpressionBadExpression          Expression = 25
+	ExpressionVectorExpression       Expression = 26
 )
 
 var EnumNamesExpression = map[Expression]string{
@@ -207,6 +211,7 @@ var EnumNamesExpression = map[Expression]string{
 	ExpressionUnaryExpression:        "UnaryExpression",
 	ExpressionUnsignedIntegerLiteral: "UnsignedIntegerLiteral",
 	ExpressionBadExpression:          "BadExpression",
+	ExpressionVectorExpression:       "VectorExpression",
 }
 
 var EnumValuesExpression = map[string]Expression{
@@ -236,6 +241,7 @@ var EnumValuesExpression = map[string]Expression{
 	"UnaryExpression":        ExpressionUnaryExpression,
 	"UnsignedIntegerLiteral": ExpressionUnsignedIntegerLiteral,
 	"BadExpression":          ExpressionBadExpression,
+	"VectorExpression":       ExpressionVectorExpression,
 }
 
 func (v Expression) String() string {
@@ -658,6 +664,83 @@ func ArrayTypeAddElement(builder *flatbuffers.Builder, element flatbuffers.UOffs
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(element), 0)
 }
 func ArrayTypeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+
+type VectorType struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsVectorType(buf []byte, offset flatbuffers.UOffsetT) *VectorType {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &VectorType{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func GetSizePrefixedRootAsVectorType(buf []byte, offset flatbuffers.UOffsetT) *VectorType {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &VectorType{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func (rcv *VectorType) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *VectorType) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *VectorType) BaseNode(obj *BaseNode) *BaseNode {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(BaseNode)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
+func (rcv *VectorType) ElementType() MonoType {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	if o != 0 {
+		return MonoType(rcv._tab.GetByte(o + rcv._tab.Pos))
+	}
+	return 0
+}
+
+func (rcv *VectorType) MutateElementType(n MonoType) bool {
+	return rcv._tab.MutateByteSlot(6, byte(n))
+}
+
+func (rcv *VectorType) Element(obj *flatbuffers.Table) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	if o != 0 {
+		rcv._tab.Union(obj, o)
+		return true
+	}
+	return false
+}
+
+func VectorTypeStart(builder *flatbuffers.Builder) {
+	builder.StartObject(3)
+}
+func VectorTypeAddBaseNode(builder *flatbuffers.Builder, baseNode flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(baseNode), 0)
+}
+func VectorTypeAddElementType(builder *flatbuffers.Builder, elementType MonoType) {
+	builder.PrependByteSlot(1, byte(elementType), 0)
+}
+func VectorTypeAddElement(builder *flatbuffers.Builder, element flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(element), 0)
+}
+func VectorTypeEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
 }
 
@@ -4221,6 +4304,82 @@ func ArrayExpressionStartElementsVector(builder *flatbuffers.Builder, numElems i
 	return builder.StartVector(4, numElems, 4)
 }
 func ArrayExpressionEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	return builder.EndObject()
+}
+
+type VectorExpression struct {
+	_tab flatbuffers.Table
+}
+
+func GetRootAsVectorExpression(buf []byte, offset flatbuffers.UOffsetT) *VectorExpression {
+	n := flatbuffers.GetUOffsetT(buf[offset:])
+	x := &VectorExpression{}
+	x.Init(buf, n+offset)
+	return x
+}
+
+func GetSizePrefixedRootAsVectorExpression(buf []byte, offset flatbuffers.UOffsetT) *VectorExpression {
+	n := flatbuffers.GetUOffsetT(buf[offset+flatbuffers.SizeUint32:])
+	x := &VectorExpression{}
+	x.Init(buf, n+offset+flatbuffers.SizeUint32)
+	return x
+}
+
+func (rcv *VectorExpression) Init(buf []byte, i flatbuffers.UOffsetT) {
+	rcv._tab.Bytes = buf
+	rcv._tab.Pos = i
+}
+
+func (rcv *VectorExpression) Table() flatbuffers.Table {
+	return rcv._tab
+}
+
+func (rcv *VectorExpression) BaseNode(obj *BaseNode) *BaseNode {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(BaseNode)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
+func (rcv *VectorExpression) Elements(obj *WrappedExpression, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *VectorExpression) ElementsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func VectorExpressionStart(builder *flatbuffers.Builder) {
+	builder.StartObject(2)
+}
+func VectorExpressionAddBaseNode(builder *flatbuffers.Builder, baseNode flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(baseNode), 0)
+}
+func VectorExpressionAddElements(builder *flatbuffers.Builder, elements flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(elements), 0)
+}
+func VectorExpressionStartElementsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func VectorExpressionEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
 }
 

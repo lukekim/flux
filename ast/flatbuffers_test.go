@@ -115,6 +115,38 @@ func TestDecodeMonoType(t *testing.T) {
 			t.Errorf("unexpected AST -want/+got:\n%s", cmp.Diff(want, got, CompareOptions...))
 		}
 	})
+	t.Run("vector", func(t *testing.T) {
+		b := flatbuffers.NewBuilder(1024)
+
+		name := b.CreateString("int")
+
+		fbast.IdentifierStart(b)
+		fbast.IdentifierAddName(b, name)
+		id := fbast.IdentifierEnd(b)
+
+		fbast.NamedTypeStart(b)
+		fbast.NamedTypeAddId(b, id)
+		el := fbast.NamedTypeEnd(b)
+
+		fbast.VectorTypeStart(b)
+		fbast.VectorTypeAddElementType(b, fbast.MonoTypeNamedType)
+		fbast.VectorTypeAddElement(b, el)
+		ty := fbast.VectorTypeEnd(b)
+
+		b.Finish(ty)
+		fbt := fbast.GetRootAsVectorType(b.FinishedBytes(), 0)
+		tbl := fbt.Table()
+
+		want := &ast.VectorType{
+			ElementType: &ast.NamedType{
+				ID: &ast.Identifier{Name: "int"},
+			},
+		}
+
+		if got := ast.DecodeMonoType(&tbl, fbast.MonoTypeVectorType); !cmp.Equal(want, got, CompareOptions...) {
+			t.Errorf("unexpected AST -want/+got:\n%s", cmp.Diff(want, got, CompareOptions...))
+		}
+	})
 	t.Run("empty record", func(t *testing.T) {
 		b := flatbuffers.NewBuilder(1024)
 

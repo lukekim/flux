@@ -24,13 +24,13 @@ pub mod fbsemantic {
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
     )]
-    pub const ENUM_MAX_MONO_TYPE: u8 = 6;
+    pub const ENUM_MAX_MONO_TYPE: u8 = 7;
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
     )]
     #[allow(non_camel_case_types)]
-    pub const ENUM_VALUES_MONO_TYPE: [MonoType; 7] = [
+    pub const ENUM_VALUES_MONO_TYPE: [MonoType; 8] = [
         MonoType::NONE,
         MonoType::Basic,
         MonoType::Var,
@@ -38,6 +38,7 @@ pub mod fbsemantic {
         MonoType::Record,
         MonoType::Fun,
         MonoType::Dict,
+        MonoType::Vector,
     ];
 
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -52,9 +53,10 @@ pub mod fbsemantic {
         pub const Record: Self = Self(4);
         pub const Fun: Self = Self(5);
         pub const Dict: Self = Self(6);
+        pub const Vector: Self = Self(7);
 
         pub const ENUM_MIN: u8 = 0;
-        pub const ENUM_MAX: u8 = 6;
+        pub const ENUM_MAX: u8 = 7;
         pub const ENUM_VALUES: &'static [Self] = &[
             Self::NONE,
             Self::Basic,
@@ -63,6 +65,7 @@ pub mod fbsemantic {
             Self::Record,
             Self::Fun,
             Self::Dict,
+            Self::Vector,
         ];
         /// Returns the variant's name or "" if unknown.
         pub fn variant_name(self) -> Option<&'static str> {
@@ -74,6 +77,7 @@ pub mod fbsemantic {
                 Self::Record => Some("Record"),
                 Self::Fun => Some("Fun"),
                 Self::Dict => Some("Dict"),
+                Self::Vector => Some("Vector"),
                 _ => None,
             }
         }
@@ -627,13 +631,13 @@ pub mod fbsemantic {
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
     )]
-    pub const ENUM_MAX_EXPRESSION: u8 = 21;
+    pub const ENUM_MAX_EXPRESSION: u8 = 22;
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
     )]
     #[allow(non_camel_case_types)]
-    pub const ENUM_VALUES_EXPRESSION: [Expression; 22] = [
+    pub const ENUM_VALUES_EXPRESSION: [Expression; 23] = [
         Expression::NONE,
         Expression::StringExpression,
         Expression::ArrayExpression,
@@ -656,6 +660,7 @@ pub mod fbsemantic {
         Expression::StringLiteral,
         Expression::RegexpLiteral,
         Expression::UnsignedIntegerLiteral,
+        Expression::VectorExpression,
     ];
 
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -685,9 +690,10 @@ pub mod fbsemantic {
         pub const StringLiteral: Self = Self(19);
         pub const RegexpLiteral: Self = Self(20);
         pub const UnsignedIntegerLiteral: Self = Self(21);
+        pub const VectorExpression: Self = Self(22);
 
         pub const ENUM_MIN: u8 = 0;
-        pub const ENUM_MAX: u8 = 21;
+        pub const ENUM_MAX: u8 = 22;
         pub const ENUM_VALUES: &'static [Self] = &[
             Self::NONE,
             Self::StringExpression,
@@ -711,6 +717,7 @@ pub mod fbsemantic {
             Self::StringLiteral,
             Self::RegexpLiteral,
             Self::UnsignedIntegerLiteral,
+            Self::VectorExpression,
         ];
         /// Returns the variant's name or "" if unknown.
         pub fn variant_name(self) -> Option<&'static str> {
@@ -737,6 +744,7 @@ pub mod fbsemantic {
                 Self::StringLiteral => Some("StringLiteral"),
                 Self::RegexpLiteral => Some("RegexpLiteral"),
                 Self::UnsignedIntegerLiteral => Some("UnsignedIntegerLiteral"),
+                Self::VectorExpression => Some("VectorExpression"),
                 _ => None,
             }
         }
@@ -1622,6 +1630,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for MonoTypeHolder<'_> {
@@ -1667,6 +1685,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -1778,6 +1801,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -2090,6 +2123,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_vect(&self) -> Option<Vector<'a>> {
+            if self.t_type() == MonoType::Vector {
+                self.t().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Arr<'_> {
@@ -2135,6 +2178,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -2244,6 +2292,319 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.t_as_dict() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.t_as_vect() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                _ => {
+                    let x: Option<()> = None;
+                    ds.field("t", &x)
+                }
+            };
+            ds.finish()
+        }
+    }
+    pub enum VectOffset {}
+    #[derive(Copy, Clone, PartialEq)]
+
+    pub struct Vector<'a> {
+        pub _tab: flatbuffers::Table<'a>,
+    }
+
+    impl<'a> flatbuffers::Follow<'a> for Vector<'a> {
+        type Inner = Vector<'a>;
+        #[inline]
+        fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+            Self {
+                _tab: flatbuffers::Table { buf, loc },
+            }
+        }
+    }
+
+    impl<'a> Vector<'a> {
+        #[inline]
+        pub fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+            Vector { _tab: table }
+        }
+        #[allow(unused_mut)]
+        pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr>(
+            _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
+            args: &'args VectArgs,
+        ) -> flatbuffers::WIPOffset<Vector<'bldr>> {
+            let mut builder = VectBuilder::new(_fbb);
+            if let Some(x) = args.t {
+                builder.add_t(x);
+            }
+            builder.add_t_type(args.t_type);
+            builder.finish()
+        }
+
+        pub const VT_T_TYPE: flatbuffers::VOffsetT = 4;
+        pub const VT_T: flatbuffers::VOffsetT = 6;
+
+        #[inline]
+        pub fn t_type(&self) -> MonoType {
+            self._tab
+                .get::<MonoType>(Vector::VT_T_TYPE, Some(MonoType::NONE))
+                .unwrap()
+        }
+        #[inline]
+        pub fn t(&self) -> Option<flatbuffers::Table<'a>> {
+            self._tab
+                .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(Vector::VT_T, None)
+        }
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_basic(&self) -> Option<Basic<'a>> {
+            if self.t_type() == MonoType::Basic {
+                self.t().map(Basic::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_var(&self) -> Option<Var<'a>> {
+            if self.t_type() == MonoType::Var {
+                self.t().map(Var::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_arr(&self) -> Option<Arr<'a>> {
+            if self.t_type() == MonoType::Arr {
+                self.t().map(Arr::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_record(&self) -> Option<Record<'a>> {
+            if self.t_type() == MonoType::Record {
+                self.t().map(Record::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_fun(&self) -> Option<Fun<'a>> {
+            if self.t_type() == MonoType::Fun {
+                self.t().map(Fun::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_dict(&self) -> Option<Dict<'a>> {
+            if self.t_type() == MonoType::Dict {
+                self.t().map(Dict::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_vect(&self) -> Option<Vector<'a>> {
+            if self.t_type() == MonoType::Vector {
+                self.t().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
+    }
+
+    impl flatbuffers::Verifiable for Vector<'_> {
+        #[inline]
+        fn run_verifier(
+            v: &mut flatbuffers::Verifier,
+            pos: usize,
+        ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+            use self::flatbuffers::Verifiable;
+            v.visit_table(pos)?
+                .visit_union::<MonoType, _>(
+                    &"t_type",
+                    Self::VT_T_TYPE,
+                    &"t",
+                    Self::VT_T,
+                    false,
+                    |key, v, pos| match key {
+                        MonoType::Basic => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Basic>>(
+                                "MonoType::Basic",
+                                pos,
+                            ),
+                        MonoType::Var => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Var>>(
+                                "MonoType::Var",
+                                pos,
+                            ),
+                        MonoType::Arr => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Arr>>(
+                                "MonoType::Arr",
+                                pos,
+                            ),
+                        MonoType::Record => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>(
+                                "MonoType::Record",
+                                pos,
+                            ),
+                        MonoType::Fun => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>(
+                                "MonoType::Fun",
+                                pos,
+                            ),
+                        MonoType::Dict => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
+                                "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
+                                pos,
+                            ),
+                        _ => Ok(()),
+                    },
+                )?
+                .finish();
+            Ok(())
+        }
+    }
+    pub struct VectArgs {
+        pub t_type: MonoType,
+        pub t: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
+    }
+    impl<'a> Default for VectArgs {
+        #[inline]
+        fn default() -> Self {
+            VectArgs {
+                t_type: MonoType::NONE,
+                t: None,
+            }
+        }
+    }
+    pub struct VectBuilder<'a: 'b, 'b> {
+        fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a>,
+        start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+    }
+    impl<'a: 'b, 'b> VectBuilder<'a, 'b> {
+        #[inline]
+        pub fn add_t_type(&mut self, t_type: MonoType) {
+            self.fbb_
+                .push_slot::<MonoType>(Vector::VT_T_TYPE, t_type, MonoType::NONE);
+        }
+        #[inline]
+        pub fn add_t(&mut self, t: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>) {
+            self.fbb_
+                .push_slot_always::<flatbuffers::WIPOffset<_>>(Vector::VT_T, t);
+        }
+        #[inline]
+        pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>) -> VectBuilder<'a, 'b> {
+            let start = _fbb.start_table();
+            VectBuilder {
+                fbb_: _fbb,
+                start_: start,
+            }
+        }
+        #[inline]
+        pub fn finish(self) -> flatbuffers::WIPOffset<Vector<'a>> {
+            let o = self.fbb_.end_table(self.start_);
+            flatbuffers::WIPOffset::new(o.value())
+        }
+    }
+
+    impl std::fmt::Debug for Vector<'_> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let mut ds = f.debug_struct("Vector");
+            ds.field("t_type", &self.t_type());
+            match self.t_type() {
+                MonoType::Basic => {
+                    if let Some(x) = self.t_as_basic() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Var => {
+                    if let Some(x) = self.t_as_var() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Arr => {
+                    if let Some(x) = self.t_as_arr() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Record => {
+                    if let Some(x) = self.t_as_record() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Fun => {
+                    if let Some(x) = self.t_as_fun() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Dict => {
+                    if let Some(x) = self.t_as_dict() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.t_as_vect() {
                         ds.field("t", &x)
                     } else {
                         ds.field(
@@ -2513,6 +2874,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn retn_as_vect(&self) -> Option<Vector<'a>> {
+            if self.retn_type() == MonoType::Vector {
+                self.retn().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Fun<'_> {
@@ -2561,6 +2932,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -2687,6 +3063,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.retn_as_dict() {
+                        ds.field("retn", &x)
+                    } else {
+                        ds.field(
+                            "retn",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.retn_as_vect() {
                         ds.field("retn", &x)
                     } else {
                         ds.field(
@@ -2831,6 +3217,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn k_as_vect(&self) -> Option<Vector<'a>> {
+            if self.k_type() == MonoType::Vector {
+                self.k().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn v_as_basic(&self) -> Option<Basic<'a>> {
             if self.v_type() == MonoType::Basic {
                 self.v().map(Basic::init_from_table)
@@ -2888,6 +3284,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn v_as_vect(&self) -> Option<Vector<'a>> {
+            if self.v_type() == MonoType::Vector {
+                self.v().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Dict<'_> {
@@ -2935,6 +3341,11 @@ pub mod fbsemantic {
                                 "MonoType::Dict",
                                 pos,
                             ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
+                                pos,
+                            ),
                         _ => Ok(()),
                     },
                 )?
@@ -2973,6 +3384,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -3104,6 +3520,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                MonoType::Vector => {
+                    if let Some(x) = self.k_as_vect() {
+                        ds.field("k", &x)
+                    } else {
+                        ds.field(
+                            "k",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("k", &x)
@@ -3163,6 +3589,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.v_as_dict() {
+                        ds.field("v", &x)
+                    } else {
+                        ds.field(
+                            "v",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.v_as_vect() {
                         ds.field("v", &x)
                     } else {
                         ds.field(
@@ -3312,6 +3748,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn t_as_vect(&self) -> Option<Vector<'a>> {
+            if self.t_type() == MonoType::Vector {
+                self.t().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Argument<'_> {
@@ -3358,6 +3804,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -3498,6 +3949,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                MonoType::Vector => {
+                    if let Some(x) = self.t_as_vect() {
+                        ds.field("t", &x)
+                    } else {
+                        ds.field(
+                            "t",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("t", &x)
@@ -3625,6 +4086,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn v_as_vect(&self) -> Option<Vector<'a>> {
+            if self.v_type() == MonoType::Vector {
+                self.v().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Prop<'_> {
@@ -3671,6 +4142,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -3788,6 +4264,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.v_as_dict() {
+                        ds.field("v", &x)
+                    } else {
+                        ds.field(
+                            "v",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.v_as_vect() {
                         ds.field("v", &x)
                     } else {
                         ds.field(
@@ -3939,6 +4425,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn expr_as_vect(&self) -> Option<Vector<'a>> {
+            if self.expr_type() == MonoType::Vector {
+                self.expr().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for PolyType<'_> {
@@ -3990,6 +4486,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -4131,6 +4632,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.expr_as_dict() {
+                        ds.field("expr", &x)
+                    } else {
+                        ds.field(
+                            "expr",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.expr_as_vect() {
                         ds.field("expr", &x)
                     } else {
                         ds.field(
@@ -6100,6 +6611,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn expression_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.expression_type() == Expression::VectorExpression {
+                self.expression().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for ExpressionStatement<'_> {
@@ -6134,6 +6655,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -6420,6 +6942,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.expression_as_vector_expression() {
+                        ds.field("expression", &x)
+                    } else {
+                        ds.field(
+                            "expression",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("expression", &x)
@@ -6698,6 +7230,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn argument_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.argument_type() == Expression::VectorExpression {
+                self.argument().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for ReturnStatement<'_> {
@@ -6732,6 +7274,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -7010,6 +7553,16 @@ pub mod fbsemantic {
                 }
                 Expression::UnsignedIntegerLiteral => {
                     if let Some(x) = self.argument_as_unsigned_integer_literal() {
+                        ds.field("argument", &x)
+                    } else {
+                        ds.field(
+                            "argument",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.argument_as_vector_expression() {
                         ds.field("argument", &x)
                     } else {
                         ds.field(
@@ -7324,6 +7877,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn init__as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.init__type() == Expression::VectorExpression {
+                self.init_().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for NativeVariableAssignment<'_> {
@@ -7359,6 +7922,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -7664,6 +8228,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.init__as_vector_expression() {
+                        ds.field("init_", &x)
+                    } else {
+                        ds.field(
+                            "init_",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("init_", &x)
@@ -7955,6 +8529,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn init__as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.init__type() == Expression::VectorExpression {
+                self.init_().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for MemberAssignment<'_> {
@@ -7990,6 +8574,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -8282,6 +8867,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.init__as_vector_expression() {
+                        ds.field("init_", &x)
+                    } else {
+                        ds.field(
+                            "init_",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("init_", &x)
@@ -8556,6 +9151,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn expression_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.expression_type() == Expression::VectorExpression {
+                self.expression().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for WrappedExpression<'_> {
@@ -8589,6 +9194,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -8856,6 +9462,16 @@ pub mod fbsemantic {
                 }
                 Expression::UnsignedIntegerLiteral => {
                     if let Some(x) = self.expression_as_unsigned_integer_literal() {
+                        ds.field("expression", &x)
+                    } else {
+                        ds.field(
+                            "expression",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.expression_as_vector_expression() {
                         ds.field("expression", &x)
                     } else {
                         ds.field(
@@ -9331,6 +9947,17 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn interpolated_expression_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.interpolated_expression_type() == Expression::VectorExpression {
+                self.interpolated_expression()
+                    .map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for StringExpressionPart<'_> {
@@ -9366,6 +9993,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -9668,6 +10296,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.interpolated_expression_as_vector_expression() {
+                        ds.field("interpolated_expression", &x)
+                    } else {
+                        ds.field(
+                            "interpolated_expression",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("interpolated_expression", &x)
@@ -9809,6 +10447,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for ArrayExpression<'_> {
@@ -9862,6 +10510,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -10011,6 +10664,387 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                _ => {
+                    let x: Option<()> = None;
+                    ds.field("typ", &x)
+                }
+            };
+            ds.finish()
+        }
+    }
+    pub enum VectorExpressionOffset {}
+    #[derive(Copy, Clone, PartialEq)]
+
+    pub struct VectorExpression<'a> {
+        pub _tab: flatbuffers::Table<'a>,
+    }
+
+    impl<'a> flatbuffers::Follow<'a> for VectorExpression<'a> {
+        type Inner = VectorExpression<'a>;
+        #[inline]
+        fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+            Self {
+                _tab: flatbuffers::Table { buf, loc },
+            }
+        }
+    }
+
+    impl<'a> VectorExpression<'a> {
+        #[inline]
+        pub fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+            VectorExpression { _tab: table }
+        }
+        #[allow(unused_mut)]
+        pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr>(
+            _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
+            args: &'args VectorExpressionArgs<'args>,
+        ) -> flatbuffers::WIPOffset<VectorExpression<'bldr>> {
+            let mut builder = VectorExpressionBuilder::new(_fbb);
+            if let Some(x) = args.typ {
+                builder.add_typ(x);
+            }
+            if let Some(x) = args.elements {
+                builder.add_elements(x);
+            }
+            if let Some(x) = args.loc {
+                builder.add_loc(x);
+            }
+            builder.add_typ_type(args.typ_type);
+            builder.finish()
+        }
+
+        pub const VT_LOC: flatbuffers::VOffsetT = 4;
+        pub const VT_ELEMENTS: flatbuffers::VOffsetT = 6;
+        pub const VT_TYP_TYPE: flatbuffers::VOffsetT = 8;
+        pub const VT_TYP: flatbuffers::VOffsetT = 10;
+
+        #[inline]
+        pub fn loc(&self) -> Option<SourceLocation<'a>> {
+            self._tab
+                .get::<flatbuffers::ForwardsUOffset<SourceLocation>>(VectorExpression::VT_LOC, None)
+        }
+        #[inline]
+        pub fn elements(
+            &self,
+        ) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<WrappedExpression<'a>>>>
+        {
+            self._tab.get::<flatbuffers::ForwardsUOffset<
+                flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<WrappedExpression>>,
+            >>(VectorExpression::VT_ELEMENTS, None)
+        }
+        #[inline]
+        pub fn typ_type(&self) -> MonoType {
+            self._tab
+                .get::<MonoType>(VectorExpression::VT_TYP_TYPE, Some(MonoType::NONE))
+                .unwrap()
+        }
+        #[inline]
+        pub fn typ(&self) -> Option<flatbuffers::Table<'a>> {
+            self._tab
+                .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(
+                    VectorExpression::VT_TYP,
+                    None,
+                )
+        }
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
+            if self.typ_type() == MonoType::Basic {
+                self.typ().map(Basic::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_var(&self) -> Option<Var<'a>> {
+            if self.typ_type() == MonoType::Var {
+                self.typ().map(Var::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_arr(&self) -> Option<Arr<'a>> {
+            if self.typ_type() == MonoType::Arr {
+                self.typ().map(Arr::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_record(&self) -> Option<Record<'a>> {
+            if self.typ_type() == MonoType::Record {
+                self.typ().map(Record::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_fun(&self) -> Option<Fun<'a>> {
+            if self.typ_type() == MonoType::Fun {
+                self.typ().map(Fun::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_dict(&self) -> Option<Dict<'a>> {
+            if self.typ_type() == MonoType::Dict {
+                self.typ().map(Dict::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
+    }
+
+    impl flatbuffers::Verifiable for VectorExpression<'_> {
+        #[inline]
+        fn run_verifier(
+            v: &mut flatbuffers::Verifier,
+            pos: usize,
+        ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+            use self::flatbuffers::Verifiable;
+            v.visit_table(pos)?
+                .visit_field::<flatbuffers::ForwardsUOffset<SourceLocation>>(
+                    &"loc",
+                    Self::VT_LOC,
+                    false,
+                )?
+                .visit_field::<flatbuffers::ForwardsUOffset<
+                    flatbuffers::Vector<'_, flatbuffers::ForwardsUOffset<WrappedExpression>>,
+                >>(&"elements", Self::VT_ELEMENTS, false)?
+                .visit_union::<MonoType, _>(
+                    &"typ_type",
+                    Self::VT_TYP_TYPE,
+                    &"typ",
+                    Self::VT_TYP,
+                    false,
+                    |key, v, pos| match key {
+                        MonoType::Basic => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Basic>>(
+                                "MonoType::Basic",
+                                pos,
+                            ),
+                        MonoType::Var => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Var>>(
+                                "MonoType::Var",
+                                pos,
+                            ),
+                        MonoType::Arr => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Arr>>(
+                                "MonoType::Arr",
+                                pos,
+                            ),
+                        MonoType::Record => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>(
+                                "MonoType::Record",
+                                pos,
+                            ),
+                        MonoType::Fun => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>(
+                                "MonoType::Fun",
+                                pos,
+                            ),
+                        MonoType::Dict => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
+                                "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
+                                pos,
+                            ),
+                        _ => Ok(()),
+                    },
+                )?
+                .finish();
+            Ok(())
+        }
+    }
+    pub struct VectorExpressionArgs<'a> {
+        pub loc: Option<flatbuffers::WIPOffset<SourceLocation<'a>>>,
+        pub elements: Option<
+            flatbuffers::WIPOffset<
+                flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<WrappedExpression<'a>>>,
+            >,
+        >,
+        pub typ_type: MonoType,
+        pub typ: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
+    }
+    impl<'a> Default for VectorExpressionArgs<'a> {
+        #[inline]
+        fn default() -> Self {
+            VectorExpressionArgs {
+                loc: None,
+                elements: None,
+                typ_type: MonoType::NONE,
+                typ: None,
+            }
+        }
+    }
+    pub struct VectorExpressionBuilder<'a: 'b, 'b> {
+        fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a>,
+        start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+    }
+    impl<'a: 'b, 'b> VectorExpressionBuilder<'a, 'b> {
+        #[inline]
+        pub fn add_loc(&mut self, loc: flatbuffers::WIPOffset<SourceLocation<'b>>) {
+            self.fbb_
+                .push_slot_always::<flatbuffers::WIPOffset<SourceLocation>>(
+                    VectorExpression::VT_LOC,
+                    loc,
+                );
+        }
+        #[inline]
+        pub fn add_elements(
+            &mut self,
+            elements: flatbuffers::WIPOffset<
+                flatbuffers::Vector<'b, flatbuffers::ForwardsUOffset<WrappedExpression<'b>>>,
+            >,
+        ) {
+            self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                VectorExpression::VT_ELEMENTS,
+                elements,
+            );
+        }
+        #[inline]
+        pub fn add_typ_type(&mut self, typ_type: MonoType) {
+            self.fbb_.push_slot::<MonoType>(
+                VectorExpression::VT_TYP_TYPE,
+                typ_type,
+                MonoType::NONE,
+            );
+        }
+        #[inline]
+        pub fn add_typ(&mut self, typ: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>) {
+            self.fbb_
+                .push_slot_always::<flatbuffers::WIPOffset<_>>(VectorExpression::VT_TYP, typ);
+        }
+        #[inline]
+        pub fn new(
+            _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>,
+        ) -> VectorExpressionBuilder<'a, 'b> {
+            let start = _fbb.start_table();
+            VectorExpressionBuilder {
+                fbb_: _fbb,
+                start_: start,
+            }
+        }
+        #[inline]
+        pub fn finish(self) -> flatbuffers::WIPOffset<VectorExpression<'a>> {
+            let o = self.fbb_.end_table(self.start_);
+            flatbuffers::WIPOffset::new(o.value())
+        }
+    }
+
+    impl std::fmt::Debug for VectorExpression<'_> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let mut ds = f.debug_struct("VectorExpression");
+            ds.field("loc", &self.loc());
+            ds.field("elements", &self.elements());
+            ds.field("typ_type", &self.typ_type());
+            match self.typ_type() {
+                MonoType::Basic => {
+                    if let Some(x) = self.typ_as_basic() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Var => {
+                    if let Some(x) = self.typ_as_var() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Arr => {
+                    if let Some(x) = self.typ_as_arr() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Record => {
+                    if let Some(x) = self.typ_as_record() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Fun => {
+                    if let Some(x) = self.typ_as_fun() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Dict => {
+                    if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("typ", &x)
@@ -10151,6 +11185,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for DictExpression<'_> {
@@ -10204,6 +11248,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -10345,6 +11394,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -10639,6 +11698,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn key_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.key_type() == Expression::VectorExpression {
+                self.key().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn val_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.val_type() == Expression::StringExpression {
                 self.val().map(StringExpression::init_from_table)
@@ -10846,6 +11915,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn val_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.val_type() == Expression::VectorExpression {
+                self.val().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for DictItem<'_> {
@@ -10879,6 +11958,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -10905,6 +11985,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -11184,6 +12265,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.key_as_vector_expression() {
+                        ds.field("key", &x)
+                    } else {
+                        ds.field(
+                            "key",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("key", &x)
@@ -11401,6 +12492,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.val_as_vector_expression() {
+                        ds.field("val", &x)
+                    } else {
+                        ds.field(
+                            "val",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("val", &x)
@@ -11554,6 +12655,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for FunctionExpression<'_> {
@@ -11608,6 +12719,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -11762,6 +12878,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -12068,6 +13194,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn default_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.default_type() == Expression::VectorExpression {
+                self.default().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for FunctionParameter<'_> {
@@ -12104,6 +13240,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -12401,6 +13538,16 @@ pub mod fbsemantic {
                 }
                 Expression::UnsignedIntegerLiteral => {
                     if let Some(x) = self.default_as_unsigned_integer_literal() {
+                        ds.field("default", &x)
+                    } else {
+                        ds.field(
+                            "default",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.default_as_vector_expression() {
                         ds.field("default", &x)
                     } else {
                         ds.field(
@@ -12877,6 +14024,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn left_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.left_type() == Expression::VectorExpression {
+                self.left().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn right_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.right_type() == Expression::StringExpression {
                 self.right().map(StringExpression::init_from_table)
@@ -13087,6 +14244,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn right_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.right_type() == Expression::VectorExpression {
+                self.right().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
             if self.typ_type() == MonoType::Basic {
                 self.typ().map(Basic::init_from_table)
@@ -13144,6 +14311,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for BinaryExpression<'_> {
@@ -13179,6 +14356,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -13205,6 +14383,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -13216,6 +14395,7 @@ pub mod fbsemantic {
           MonoType::Record => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>("MonoType::Record", pos),
           MonoType::Fun => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>("MonoType::Fun", pos),
           MonoType::Dict => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>("MonoType::Dict", pos),
+          MonoType::Vector => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>("MonoType::Vector", pos),
           _ => Ok(()),
         }
      })?
@@ -13542,6 +14722,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.left_as_vector_expression() {
+                        ds.field("left", &x)
+                    } else {
+                        ds.field(
+                            "left",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("left", &x)
@@ -13759,6 +14949,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.right_as_vector_expression() {
+                        ds.field("right", &x)
+                    } else {
+                        ds.field(
+                            "right",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("right", &x)
@@ -13818,6 +15018,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -14159,6 +15369,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn callee_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.callee_type() == Expression::VectorExpression {
+                self.callee().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn pipe_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.pipe_type() == Expression::StringExpression {
                 self.pipe().map(StringExpression::init_from_table)
@@ -14369,6 +15589,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn pipe_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.pipe_type() == Expression::VectorExpression {
+                self.pipe().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
             if self.typ_type() == MonoType::Basic {
                 self.typ().map(Basic::init_from_table)
@@ -14426,6 +15656,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for CallExpression<'_> {
@@ -14460,6 +15700,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -14487,6 +15728,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -14498,6 +15740,7 @@ pub mod fbsemantic {
           MonoType::Record => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>("MonoType::Record", pos),
           MonoType::Fun => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>("MonoType::Fun", pos),
           MonoType::Dict => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>("MonoType::Dict", pos),
+          MonoType::Vector => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>("MonoType::Vector", pos),
           _ => Ok(()),
         }
      })?
@@ -14828,6 +16071,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.callee_as_vector_expression() {
+                        ds.field("callee", &x)
+                    } else {
+                        ds.field(
+                            "callee",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("callee", &x)
@@ -15046,6 +16299,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.pipe_as_vector_expression() {
+                        ds.field("pipe", &x)
+                    } else {
+                        ds.field(
+                            "pipe",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("pipe", &x)
@@ -15105,6 +16368,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -15443,6 +16716,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn test_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.test_type() == Expression::VectorExpression {
+                self.test().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn alternate_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.alternate_type() == Expression::StringExpression {
                 self.alternate().map(StringExpression::init_from_table)
@@ -15647,6 +16930,16 @@ pub mod fbsemantic {
             if self.alternate_type() == Expression::UnsignedIntegerLiteral {
                 self.alternate()
                     .map(UnsignedIntegerLiteral::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn alternate_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.alternate_type() == Expression::VectorExpression {
+                self.alternate().map(VectorExpression::init_from_table)
             } else {
                 None
             }
@@ -15863,6 +17156,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn consequent_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.consequent_type() == Expression::VectorExpression {
+                self.consequent().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for ConditionalExpression<'_> {
@@ -15897,6 +17200,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -15923,6 +17227,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -15949,6 +17254,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -16276,6 +17582,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.test_as_vector_expression() {
+                        ds.field("test", &x)
+                    } else {
+                        ds.field(
+                            "test",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("test", &x)
@@ -16493,6 +17809,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.alternate_as_vector_expression() {
+                        ds.field("alternate", &x)
+                    } else {
+                        ds.field(
+                            "alternate",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("alternate", &x)
@@ -16702,6 +18028,16 @@ pub mod fbsemantic {
                 }
                 Expression::UnsignedIntegerLiteral => {
                     if let Some(x) = self.consequent_as_unsigned_integer_literal() {
+                        ds.field("consequent", &x)
+                    } else {
+                        ds.field(
+                            "consequent",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.consequent_as_vector_expression() {
                         ds.field("consequent", &x)
                     } else {
                         ds.field(
@@ -17025,6 +18361,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn left_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.left_type() == Expression::VectorExpression {
+                self.left().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn right_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.right_type() == Expression::StringExpression {
                 self.right().map(StringExpression::init_from_table)
@@ -17232,6 +18578,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn right_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.right_type() == Expression::VectorExpression {
+                self.right().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for LogicalExpression<'_> {
@@ -17267,6 +18623,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -17293,6 +18650,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -17602,6 +18960,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.left_as_vector_expression() {
+                        ds.field("left", &x)
+                    } else {
+                        ds.field(
+                            "left",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("left", &x)
@@ -17811,6 +19179,16 @@ pub mod fbsemantic {
                 }
                 Expression::UnsignedIntegerLiteral => {
                     if let Some(x) = self.right_as_unsigned_integer_literal() {
+                        ds.field("right", &x)
+                    } else {
+                        ds.field(
+                            "right",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.right_as_vector_expression() {
                         ds.field("right", &x)
                     } else {
                         ds.field(
@@ -18129,6 +19507,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn object_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.object_type() == Expression::VectorExpression {
+                self.object().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
             if self.typ_type() == MonoType::Basic {
                 self.typ().map(Basic::init_from_table)
@@ -18186,6 +19574,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for MemberExpression<'_> {
@@ -18220,6 +19618,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -18232,6 +19631,7 @@ pub mod fbsemantic {
           MonoType::Record => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>("MonoType::Record", pos),
           MonoType::Fun => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>("MonoType::Fun", pos),
           MonoType::Dict => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>("MonoType::Dict", pos),
+          MonoType::Vector => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>("MonoType::Vector", pos),
           _ => Ok(()),
         }
      })?
@@ -18539,6 +19939,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.object_as_vector_expression() {
+                        ds.field("object", &x)
+                    } else {
+                        ds.field(
+                            "object",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("object", &x)
@@ -18599,6 +20009,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -18928,6 +20348,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn array_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.array_type() == Expression::VectorExpression {
+                self.array().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn index_as_string_expression(&self) -> Option<StringExpression<'a>> {
             if self.index_type() == Expression::StringExpression {
                 self.index().map(StringExpression::init_from_table)
@@ -19138,6 +20568,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn index_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.index_type() == Expression::VectorExpression {
+                self.index().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
             if self.typ_type() == MonoType::Basic {
                 self.typ().map(Basic::init_from_table)
@@ -19195,6 +20635,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for IndexExpression<'_> {
@@ -19229,6 +20679,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -19255,6 +20706,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -19266,6 +20718,7 @@ pub mod fbsemantic {
           MonoType::Record => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>("MonoType::Record", pos),
           MonoType::Fun => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>("MonoType::Fun", pos),
           MonoType::Dict => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>("MonoType::Dict", pos),
+          MonoType::Vector => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>("MonoType::Vector", pos),
           _ => Ok(()),
         }
      })?
@@ -19578,6 +21031,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.array_as_vector_expression() {
+                        ds.field("array", &x)
+                    } else {
+                        ds.field(
+                            "array",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("array", &x)
@@ -19795,6 +21258,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.index_as_vector_expression() {
+                        ds.field("index", &x)
+                    } else {
+                        ds.field(
+                            "index",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("index", &x)
@@ -19854,6 +21327,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -20014,6 +21497,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for ObjectExpression<'_> {
@@ -20072,6 +21565,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -20227,6 +21725,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -20547,6 +22055,16 @@ pub mod fbsemantic {
 
         #[inline]
         #[allow(non_snake_case)]
+        pub fn argument_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.argument_type() == Expression::VectorExpression {
+                self.argument().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
+
+        #[inline]
+        #[allow(non_snake_case)]
         pub fn typ_as_basic(&self) -> Option<Basic<'a>> {
             if self.typ_type() == MonoType::Basic {
                 self.typ().map(Basic::init_from_table)
@@ -20604,6 +22122,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for UnaryExpression<'_> {
@@ -20639,6 +22167,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -20650,6 +22179,7 @@ pub mod fbsemantic {
           MonoType::Record => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Record>>("MonoType::Record", pos),
           MonoType::Fun => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Fun>>("MonoType::Fun", pos),
           MonoType::Dict => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>("MonoType::Dict", pos),
+          MonoType::Vector => v.verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>("MonoType::Vector", pos),
           _ => Ok(()),
         }
      })?
@@ -20961,6 +22491,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.argument_as_vector_expression() {
+                        ds.field("argument", &x)
+                    } else {
+                        ds.field(
+                            "argument",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("argument", &x)
@@ -21020,6 +22560,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(
@@ -21315,6 +22865,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn value_as_vector_expression(&self) -> Option<VectorExpression<'a>> {
+            if self.value_type() == Expression::VectorExpression {
+                self.value().map(VectorExpression::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for Property<'_> {
@@ -21350,6 +22910,7 @@ pub mod fbsemantic {
           Expression::StringLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<StringLiteral>>("Expression::StringLiteral", pos),
           Expression::RegexpLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<RegexpLiteral>>("Expression::RegexpLiteral", pos),
           Expression::UnsignedIntegerLiteral => v.verify_union_variant::<flatbuffers::ForwardsUOffset<UnsignedIntegerLiteral>>("Expression::UnsignedIntegerLiteral", pos),
+          Expression::VectorExpression => v.verify_union_variant::<flatbuffers::ForwardsUOffset<VectorExpression>>("Expression::VectorExpression", pos),
           _ => Ok(()),
         }
      })?
@@ -21634,6 +23195,16 @@ pub mod fbsemantic {
                         )
                     }
                 }
+                Expression::VectorExpression => {
+                    if let Some(x) = self.value_as_vector_expression() {
+                        ds.field("value", &x)
+                    } else {
+                        ds.field(
+                            "value",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
                 _ => {
                     let x: Option<()> = None;
                     ds.field("value", &x)
@@ -21774,6 +23345,16 @@ pub mod fbsemantic {
                 None
             }
         }
+
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typ_as_vect(&self) -> Option<Vector<'a>> {
+            if self.typ_type() == MonoType::Vector {
+                self.typ().map(Vector::init_from_table)
+            } else {
+                None
+            }
+        }
     }
 
     impl flatbuffers::Verifiable for IdentifierExpression<'_> {
@@ -21825,6 +23406,11 @@ pub mod fbsemantic {
                         MonoType::Dict => v
                             .verify_union_variant::<flatbuffers::ForwardsUOffset<Dict>>(
                                 "MonoType::Dict",
+                                pos,
+                            ),
+                        MonoType::Vector => v
+                            .verify_union_variant::<flatbuffers::ForwardsUOffset<Vector>>(
+                                "MonoType::Vector",
                                 pos,
                             ),
                         _ => Ok(()),
@@ -21958,6 +23544,16 @@ pub mod fbsemantic {
                 }
                 MonoType::Dict => {
                     if let Some(x) = self.typ_as_dict() {
+                        ds.field("typ", &x)
+                    } else {
+                        ds.field(
+                            "typ",
+                            &"InvalidFlatbuffer: Union discriminant does not match value.",
+                        )
+                    }
+                }
+                MonoType::Vector => {
+                    if let Some(x) = self.typ_as_vect() {
                         ds.field("typ", &x)
                     } else {
                         ds.field(

@@ -77,6 +77,8 @@ pub enum Node<'a> {
 
     #[display(fmt = "BadExpr")]
     BadExpr(&'a BadExpr),
+    #[display(fmt = "VectorExpr")]
+    VectorExpr(&'a VectorExpr),
 
     // Statements
     #[display(fmt = "ExprStmt")]
@@ -125,6 +127,7 @@ impl<'a> Node<'a> {
             Node::ImportDeclaration(n) => &n.base,
             Node::Identifier(n) => &n.base,
             Node::ArrayExpr(n) => &n.base,
+            Node::VectorExpr(n) => &n.base,
             Node::DictExpr(n) => &n.base,
             Node::FunctionExpr(n) => &n.base,
             Node::LogicalExpr(n) => &n.base,
@@ -171,6 +174,7 @@ impl<'a> Node<'a> {
         match expr {
             Expression::Identifier(e) => Node::Identifier(e),
             Expression::Array(e) => Node::ArrayExpr(e),
+            Expression::Vector(e) => Node::VectorExpr(e),
             Expression::Dict(e) => Node::DictExpr(e),
             Expression::Function(e) => Node::FunctionExpr(e),
             Expression::Logical(e) => Node::LogicalExpr(e),
@@ -306,6 +310,11 @@ where
             }
             Node::Identifier(_) => {}
             Node::ArrayExpr(n) => {
+                for element in n.elements.iter() {
+                    walk(&w, Node::from_expr(&element.expression));
+                }
+            }
+            Node::VectorExpr(n) => {
                 for element in n.elements.iter() {
                     walk(&w, Node::from_expr(&element.expression));
                 }

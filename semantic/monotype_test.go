@@ -37,6 +37,13 @@ func TestNewArrayType(t *testing.T) {
 	}
 }
 
+func TestNewVectorType(t *testing.T) {
+	vectorType := semantic.NewVectorType(semantic.BasicInt)
+	if want, got := vectorType.String(), "[int]"; want != got {
+		t.Errorf("unexpected monotype -want/+got:\n\t- %s\n\t+ %s", want, got)
+	}
+}
+
 func TestNewFunctionType(t *testing.T) {
 	functionType := semantic.NewFunctionType(
 		semantic.BasicString,

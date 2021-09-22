@@ -34,6 +34,34 @@ func (rcv *ArrayExpression) FromBuf(fb *fbsemantic.ArrayExpression) error {
 	return nil
 }
 
+func (rcv *VectorExpression) FromBuf(fb *fbsemantic.VectorExpression) error {
+	var err error
+	if fb == nil {
+		return nil
+	}
+	if fbLoc := fb.Loc(nil); fbLoc != nil {
+		if err = rcv.Loc.FromBuf(fbLoc); err != nil {
+			return errors.Wrap(err, codes.Inherit, "VectorExpression.Loc")
+		}
+	}
+	if fb.ElementsLength() > 0 {
+		rcv.Elements = make([]Expression, fb.ElementsLength())
+		for i := 0; i < fb.ElementsLength(); i++ {
+			fbWrappedExpression := new(fbsemantic.WrappedExpression)
+			if !fb.Elements(fbWrappedExpression, i) {
+				return errors.New(codes.Internal, "could not deserialize VectorExpression.Elements")
+			}
+			if rcv.Elements[i], err = fromWrappedExpression(fbWrappedExpression); err != nil {
+				return errors.Wrap(err, codes.Inherit, "VectorExpression.Elements")
+			}
+		}
+	}
+	if rcv.Type, err = getMonoType(fb); err != nil {
+		return errors.Wrap(err, codes.Inherit, "VectorExpression.Type")
+	}
+	return nil
+}
+
 func (rcv *DictExpression) FromBuf(fb *fbsemantic.DictExpression) error {
 	var err error
 	if fb == nil {

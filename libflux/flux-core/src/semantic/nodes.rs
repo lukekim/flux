@@ -20,7 +20,7 @@ use crate::semantic::{
     infer::{Constraint, Constraints},
     sub::{Substitutable, Substitution},
     types::{
-        Array, Dictionary, Function, Kind, MonoType, MonoTypeMap, PolyType, PolyTypeMap, Tvar,
+        Array, Vector, Dictionary, Function, Kind, MonoType, MonoTypeMap, PolyType, PolyTypeMap, Tvar,
         TvarKinds,
     },
 };
@@ -130,6 +130,7 @@ pub enum Expression {
     Boolean(BooleanLit),
     DateTime(DateTimeLit),
     Regexp(RegexpLit),
+    Vector(Box<VectorExpr>),
 }
 
 impl Expression {
@@ -157,6 +158,7 @@ impl Expression {
             Expression::Boolean(_) => MonoType::Bool,
             Expression::DateTime(_) => MonoType::Time,
             Expression::Regexp(_) => MonoType::Regexp,
+            Expression::Vector(e) => e.typ.clone(),
         }
     }
     #[allow(missing_docs)]
@@ -183,6 +185,7 @@ impl Expression {
             Expression::Boolean(lit) => &lit.loc,
             Expression::DateTime(lit) => &lit.loc,
             Expression::Regexp(lit) => &lit.loc,
+            Expression::Vector(e) => &e.loc,
         }
     }
     fn infer(&mut self, env: Environment, f: &mut Fresher) -> Result {
@@ -208,6 +211,7 @@ impl Expression {
             Expression::Boolean(lit) => lit.infer(env),
             Expression::DateTime(lit) => lit.infer(env),
             Expression::Regexp(lit) => lit.infer(env),
+            Expression::Vector(e) => e.infer(env, f),
         }
     }
     fn apply(self, sub: &Substitution) -> Self {
@@ -233,6 +237,7 @@ impl Expression {
             Expression::Boolean(lit) => Expression::Boolean(lit.apply(sub)),
             Expression::DateTime(lit) => Expression::DateTime(lit.apply(sub)),
             Expression::Regexp(lit) => Expression::Regexp(lit.apply(sub)),
+            Expression::Vector(e) => Expression::Vector(Box::new(e.apply(sub))),
         }
     }
 }
@@ -711,6 +716,50 @@ impl ArrayExpr {
             env = e;
         }
         let at = MonoType::Arr(Box::new(Array(elt)));
+        cons.push(Constraint::Equal {
+            exp: at,
+            act: self.typ.clone(),
+            loc: self.loc.clone(),
+        });
+        Ok((env, cons.into()))
+    }
+    fn apply(mut self, sub: &Substitution) -> Self {
+        self.typ = self.typ.apply(sub);
+        self.elements = self
+            .elements
+            .into_iter()
+            .map(|element| element.apply(sub))
+            .collect();
+        self
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug, PartialEq, Clone)]
+#[allow(missing_docs)]
+pub struct VectorExpr {
+    pub loc: ast::SourceLocation,
+    #[derivative(PartialEq = "ignore")]
+    pub typ: MonoType,
+
+    pub elements: Vec<Expression>,
+}
+
+impl VectorExpr {
+    fn infer(&mut self, mut env: Environment, f: &mut Fresher) -> Result {
+        let mut cons = Vec::new();
+        let elt = MonoType::Var(f.fresh());
+        for el in &mut self.elements {
+            let (e, c) = el.infer(env, f)?;
+            cons.append(&mut c.into());
+            cons.push(Constraint::Equal {
+                exp: elt.clone(),
+                act: el.type_of(),
+                loc: el.loc().clone(),
+            });
+            env = e;
+        }
+        let at = MonoType::Vector(Box::new(Vector(elt)));
         cons.push(Constraint::Equal {
             exp: at,
             act: self.typ.clone(),

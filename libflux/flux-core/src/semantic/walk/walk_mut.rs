@@ -39,6 +39,7 @@ pub enum NodeMut<'a> {
     BooleanLit(&'a mut BooleanLit),
     DateTimeLit(&'a mut DateTimeLit),
     RegexpLit(&'a mut RegexpLit),
+    VectorExpr(&'a mut VectorExpr),
 
     // Statements.
     ExprStmt(&'a mut ExprStmt),
@@ -87,6 +88,7 @@ impl<'a> fmt::Display for NodeMut<'a> {
             NodeMut::BooleanLit(_) => write!(f, "BooleanLit"),
             NodeMut::DateTimeLit(_) => write!(f, "DateTimeLit"),
             NodeMut::RegexpLit(_) => write!(f, "RegexpLit"),
+            NodeMut::VectorExpr(_) => write!(f, "VectorExpr"),
             NodeMut::ExprStmt(_) => write!(f, "ExprStmt"),
             NodeMut::OptionStmt(_) => write!(f, "OptionStmt"),
             NodeMut::ReturnStmt(_) => write!(f, "ReturnStmt"),
@@ -137,6 +139,7 @@ impl<'a> NodeMut<'a> {
             NodeMut::BooleanLit(n) => &n.loc,
             NodeMut::DateTimeLit(n) => &n.loc,
             NodeMut::RegexpLit(n) => &n.loc,
+            NodeMut::VectorExpr(n) => &n.loc,
             NodeMut::ExprStmt(n) => &n.loc,
             NodeMut::OptionStmt(n) => &n.loc,
             NodeMut::ReturnStmt(n) => &n.loc,
@@ -182,6 +185,7 @@ impl<'a> NodeMut<'a> {
             NodeMut::BooleanLit(n) => Some(Expression::Boolean((*n).clone()).type_of()),
             NodeMut::DateTimeLit(n) => Some(Expression::DateTime((*n).clone()).type_of()),
             NodeMut::RegexpLit(n) => Some(Expression::Regexp((*n).clone()).type_of()),
+            NodeMut::VectorExpr(n) => Some(Expression::Vector(Box::new((*n).clone())).type_of()),
             _ => None,
         }
     }
@@ -216,6 +220,7 @@ impl<'a> NodeMut<'a> {
             NodeMut::BooleanLit(ref mut n) => n.loc = loc,
             NodeMut::DateTimeLit(ref mut n) => n.loc = loc,
             NodeMut::RegexpLit(ref mut n) => n.loc = loc,
+            NodeMut::VectorExpr(ref mut n) => n.loc = loc,
             NodeMut::ExprStmt(ref mut n) => n.loc = loc,
             NodeMut::OptionStmt(ref mut n) => n.loc = loc,
             NodeMut::ReturnStmt(ref mut n) => n.loc = loc,
@@ -257,6 +262,7 @@ impl<'a> NodeMut<'a> {
             Expression::Boolean(ref mut e) => NodeMut::BooleanLit(e),
             Expression::DateTime(ref mut e) => NodeMut::DateTimeLit(e),
             Expression::Regexp(ref mut e) => NodeMut::RegexpLit(e),
+            Expression::Vector(ref mut e) => NodeMut::VectorExpr(e),
         }
     }
     fn from_stmt(stmt: &'a mut Statement) -> NodeMut {
@@ -368,6 +374,11 @@ where
             NodeMut::Identifier(_) => {}
             NodeMut::IdentifierExpr(_) => {}
             NodeMut::ArrayExpr(ref mut n) => {
+                for mut element in n.elements.iter_mut() {
+                    walk_mut(v, &mut NodeMut::from_expr(&mut element));
+                }
+            }
+            NodeMut::VectorExpr(ref mut n) => {
                 for mut element in n.elements.iter_mut() {
                     walk_mut(v, &mut NodeMut::from_expr(&mut element));
                 }
@@ -919,6 +930,9 @@ mod tests {
                     NodeMut::ArrayExpr(n) => {
                         Some(Expression::Array(Box::new((*n).clone())).type_of())
                     }
+                    NodeMut::VectorExpr(n) => {
+                        Some(Expression::Vector(Box::new((*n).clone())).type_of())
+                    }
                     NodeMut::FunctionExpr(n) => {
                         Some(Expression::Function(Box::new((*n).clone())).type_of())
                     }
@@ -1033,6 +1047,7 @@ join(tables:[a,b], on:["t1"], fn: (a,b) => (a["_field"] - b["_field"]) / b["_fie
                     match n {
                         NodeMut::IdentifierExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),
                         NodeMut::ArrayExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),
+                        NodeMut::VectorExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),
                         NodeMut::FunctionExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),
                         NodeMut::ObjectExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),
                         NodeMut::MemberExpr(ref mut n) => n.typ = MonoType::Var(Tvar(1234)),

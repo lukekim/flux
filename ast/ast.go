@@ -96,6 +96,7 @@ func (*MemberAssignment) node()    {}
 func (*StringExpression) node()      {}
 func (*ParenExpression) node()       {}
 func (*ArrayExpression) node()       {}
+func (*VectorExpression) node()      {}
 func (*DictExpression) node()        {}
 func (*FunctionExpression) node()    {}
 func (*BinaryExpression) node()      {}
@@ -127,6 +128,7 @@ func (*UnsignedIntegerLiteral) node() {}
 func (*NamedType) node()      {}
 func (*TvarType) node()       {}
 func (*ArrayType) node()      {}
+func (*VectorType) node()     {}
 func (*DictType) node()       {}
 func (*RecordType) node()     {}
 func (*FunctionType) node()   {}
@@ -240,6 +242,7 @@ type MonoType interface {
 func (NamedType) monotype()    {}
 func (TvarType) monotype()     {}
 func (ArrayType) monotype()    {}
+func (VectorType) monotype()   {}
 func (DictType) monotype()     {}
 func (RecordType) monotype()   {}
 func (FunctionType) monotype() {}
@@ -301,6 +304,26 @@ func (c *ArrayType) Copy() Node {
 	nc.BaseNode = c.BaseNode.Copy()
 
 	nc.ElementType = c.ElementType.Copy().(*ArrayType)
+	return nc
+}
+
+type VectorType struct {
+	BaseNode
+	ElementType MonoType `json:"element"`
+}
+
+func (VectorType) Type() string {
+	return "VectorType"
+}
+func (c *VectorType) Copy() Node {
+	if c == nil {
+		return c
+	}
+	nc := new(VectorType)
+	*nc = *c
+	nc.BaseNode = c.BaseNode.Copy()
+
+	nc.ElementType = c.ElementType.Copy().(*VectorType)
 	return nc
 }
 
@@ -820,6 +843,7 @@ type Expression interface {
 func (*StringExpression) expression()       {}
 func (*ParenExpression) expression()        {}
 func (*ArrayExpression) expression()        {}
+func (*VectorExpression) expression()       {}
 func (*DictExpression) expression()         {}
 func (*FunctionExpression) expression()     {}
 func (*BinaryExpression) expression()       {}
@@ -1291,6 +1315,41 @@ func (e *ArrayExpression) Copy() Node {
 		return e
 	}
 	ne := new(ArrayExpression)
+	*ne = *e
+	ne.BaseNode = e.BaseNode.Copy()
+
+	if len(e.Elements) > 0 {
+		ne.Elements = make([]Expression, len(e.Elements))
+		for i, el := range e.Elements {
+			ne.Elements[i] = el.Copy().(Expression)
+		}
+	}
+
+	return ne
+}
+
+// VectorExpr is used to create and directly specify the elements of an vector object
+type VectorItem struct {
+	Expression
+	Comma []Comment `json:"comma,omitempty"`
+}
+
+// VectorExpression is used to create and directly specify the elements of an vector object
+type VectorExpression struct {
+	BaseNode
+	Lbrack   []Comment    `json:"lbrack,omitempty"`
+	Elements []Expression `json:"elements"`
+	Rbrack   []Comment    `json:"rbrack,omitempty"`
+}
+
+// Type is the abstract type
+func (*VectorExpression) Type() string { return "VectorExpression" }
+
+func (e *VectorExpression) Copy() Node {
+	if e == nil {
+		return e
+	}
+	ne := new(VectorExpression)
 	*ne = *e
 	ne.BaseNode = e.BaseNode.Copy()
 

@@ -207,6 +207,24 @@ func TestJSONMarshal(t *testing.T) {
 			want: `{"type":"ArrayType","element":{"type":"ArrayType","element":{"type":"NamedType","name":{"type":"Identifier","name":"int"}}}}`,
 		},
 		{
+			name: "VectorType",
+			node: &ast.VectorType{
+				BaseNode: ast.BaseNode{},
+				ElementType: &ast.VectorType{
+					BaseNode: ast.BaseNode{},
+					ElementType: &ast.NamedType{
+						BaseNode: ast.BaseNode{},
+						ID: &ast.Identifier{
+							BaseNode: ast.BaseNode{},
+							Name:     "int",
+						},
+					},
+				},
+			},
+			// r#"{"type":"VectorType","element":{"type":"VectorType","element":{"type":"NamedType","name":{"type":"Identifier","name":"A"}}}}"#
+			want: `{"type":"VectorType","element":{"type":"VectorType","element":{"type":"NamedType","name":{"type":"Identifier","name":"int"}}}}`,
+		},
+		{
 			name: "RecordType",
 			node: &ast.RecordType{
 				BaseNode: ast.BaseNode{},
@@ -626,6 +644,13 @@ func TestJSONMarshal(t *testing.T) {
 				Elements: []ast.Expression{&ast.StringLiteral{Value: "hello"}},
 			},
 			want: `{"type":"ArrayExpression","elements":[{"type":"StringLiteral","value":"hello"}]}`,
+		},
+		{
+			name: "vector expression",
+			node: &ast.VectorExpression{
+				Elements: []ast.Expression{&ast.StringLiteral{Value: "hello"}},
+			},
+			want: `{"type":"VectorExpression","elements":[{"type":"StringLiteral","value":"hello"}]}`,
 		},
 		{
 			name: "dict expression",

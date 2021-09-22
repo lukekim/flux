@@ -184,6 +184,11 @@ fn convert_monotype(
             tvars,
             f,
         )?)))),
+        ast::MonoType::Vector(vector) => Ok(MonoType::Vector(Box::new(types::Vector(convert_monotype(
+            vector.element,
+            tvars,
+            f,
+        )?)))),
         ast::MonoType::Dict(dict) => {
             let key = convert_monotype(dict.key, tvars, f)?;
             let val = convert_monotype(dict.val, tvars, f)?;
@@ -349,6 +354,7 @@ fn convert_expression(expr: ast::Expression, fresher: &mut Fresher) -> Result<Ex
         ast::Expression::Conditional(expr) => Ok(Expression::Conditional(Box::new(convert_conditional_expression(*expr, fresher)?))),
         ast::Expression::Object(expr) => Ok(Expression::Object(Box::new(convert_object_expression(*expr, fresher)?))),
         ast::Expression::Array(expr) => Ok(Expression::Array(Box::new(convert_array_expression(*expr, fresher)?))),
+        ast::Expression::Vector(expr) => Ok(Expression::Vector(Box::new(convert_vector_expression(*expr, fresher)?))),
         ast::Expression::Dict(expr) => Ok(Expression::Dict(Box::new(convert_dict_expression(*expr, fresher)?))),
         ast::Expression::Identifier(expr) => Ok(Expression::Identifier(convert_identifier_expression(expr, fresher)?)),
         ast::Expression::StringExpr(expr) => Ok(Expression::StringExpr(Box::new(convert_string_expression(*expr, fresher)?))),
@@ -616,6 +622,19 @@ fn convert_array_expression(expr: ast::ArrayExpr, fresher: &mut Fresher) -> Resu
         .map(|e| convert_expression(e.expression, fresher))
         .collect::<Result<Vec<Expression>>>()?;
     Ok(ArrayExpr {
+        loc: expr.base.location,
+        typ: MonoType::Var(fresher.fresh()),
+        elements,
+    })
+}
+
+fn convert_vector_expression(expr: ast::VectorExpr, fresher: &mut Fresher) -> Result<VectorExpr> {
+    let elements = expr
+        .elements
+        .into_iter()
+        .map(|e| convert_expression(e.expression, fresher))
+        .collect::<Result<Vec<Expression>>>()?;
+    Ok(VectorExpr {
         loc: expr.base.location,
         typ: MonoType::Var(fresher.fresh()),
         elements,
