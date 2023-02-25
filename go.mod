@@ -54,9 +54,8 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	go.uber.org/zap v1.14.0
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
-	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
-	golang.org/x/tools v0.0.0-20200721032237-77f530d86f9a
+	golang.org/x/net v0.7.0
+	golang.org/x/tools v0.1.12
 	gonum.org/v1/gonum v0.8.2
 	google.golang.org/api v0.17.0
 	gopkg.in/yaml.v2 v2.3.0
